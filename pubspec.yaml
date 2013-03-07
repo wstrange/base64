@@ -1,0 +1,9 @@
+name: base64
+version: 0.5.0
+author: warren.strange@gmail.com
+description: A port of the Apache commons Base 64 codec to dart.
+dependencies:
+  unittest: any
+
+#dependencies:
+#  unittest: any
