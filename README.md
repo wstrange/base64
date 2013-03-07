@@ -1,9 +1,7 @@
 A port of the Apache commons Base64 codec to dart. 
 
-Encodes/Decodes to Base64. Has options for url safe encoding, line lengths, etc.
+Encodes/Decodes to Base64. Has options for url safe encoding, setting line lengths, etc.
 
-This is licensed under Apache 2.0 (to keep the same license as the original Apache
-project that this is based on).
+Licensed under Apache 2.0 (to be consistent with the original Java source).
 
-See tests/ for sample usage.
-
+See test/* for sample usage.
