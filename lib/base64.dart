@@ -10,9 +10,7 @@ library base64;
 
 
 import 'dart:math';
-
 part 'base_n_codec.dart';
-
 
 /**
  * Provides Base64 encoding and decoding as defined by [RFC 2045] <http://www.ietf.org/rfc/rfc2045.txt>
@@ -27,6 +25,7 @@ part 'base_n_codec.dart';
  * * Line length: Default 76. Line length that aren't multiples of 4 will still essentially end up being multiples of
  *    4 in the encoded data.
  * * Line separator: Default  is CRLF ("\r\n")
+ *
  *
  * Since this class operates directly on byte streams, and not character streams, it is hard-coded to only
  * encode/decode character encodings which are compatible with the lower 127 ASCII chart (ISO-8859-1, Windows-1252,
@@ -45,15 +44,14 @@ class Base64  extends BaseNCodec {
     static final int _BYTES_PER_ENCODED_BLOCK = 4;
 
     /**
-     *  MIME chunk size per RFC 2045 section 6.8.
-     *
+     *  MIME chunk size per RFC 2045 section 6.8. (76 bytes)
      *
      * The character limit does not count the trailing CRLF, but counts all other characters, including any
      * equal signs.
      *
      * See <http://www.ietf.org/rfc/rfc2045.txt>
      */
-    static final int _MIME_CHUNK_SIZE = 76;
+    static final int MIME_CHUNK_SIZE = 76;
 
     /** Mask used to extract 6 bits, used when encoding */
     static final int _MASK_6BITS = 0x3f;
@@ -171,8 +169,8 @@ class Base64  extends BaseNCodec {
     }
 
     /**
-     * Creates a new Base64 encoder using Url-safe encoding, default
-     * line lengths, and no padding
+     * Creates a new Base64 encoder using Url-safe encoding
+     * (no + or /), no line breaks, and no padding (=)
      */
     Base64.urlSafe():super(_BYTES_PER_UNENCODED_BLOCK,
         _BYTES_PER_ENCODED_BLOCK, 0,0) {
@@ -183,10 +181,11 @@ class Base64  extends BaseNCodec {
 
     /**
      * Create a default codec.
-     * Used MIME_CHUNKSIZE line lenths, URL unsafe,
+     * Used MIME_CHUNKSIZE line lenths (76  bytes), URL unsafe,
+     * and use padding (=)
      */
     Base64.codec():super(_BYTES_PER_UNENCODED_BLOCK,
-        _BYTES_PER_ENCODED_BLOCK, _MIME_CHUNK_SIZE,0) {
+        _BYTES_PER_ENCODED_BLOCK, MIME_CHUNK_SIZE,0) {
 
       _lineSeparator = _CHUNK_SEPARATOR;
       _encodeSize = _BYTES_PER_ENCODED_BLOCK + _lineSeparator.length;

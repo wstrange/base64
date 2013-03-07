@@ -237,17 +237,17 @@ abstract class BaseNCodec  {
     /**
      * Decodes a list containing characters in the Base-N alphabet.
      *
-     *  [pArray]
-     *            A byte array containing Base-N character data
+     *  [data]
+     *            A list containing Base-N character data
      * returns a list containing binary data
      */
-    List<int> decode(List<int> pArray) {
-        if (pArray == null || pArray.length == 0) {
-            return pArray;
+    List<int> decode(List<int> data) {
+        if (data == null || data.length == 0) {
+            return data;
         }
         var context = new _Context();
-        _decodeList(pArray, 0, pArray.length, context);
-        _decodeList(pArray, 0, EOF, context); // Notify decoder of EOF.
+        _decodeList(data, 0, data.length, context);
+        _decodeList(data, 0, EOF, context); // Notify decoder of EOF.
         var result = new List<int>.fixedLength(context.pos);
         _readResults(result, 0, result.length, context);
         return result;
@@ -258,11 +258,11 @@ abstract class BaseNCodec  {
     void _encodeList(List<int> inList, int inPos, int inAvail, _Context context);
 
     /**
-     * Encodes an array containing binary data, into a List containing characters in the alphabet.
+     * Encodes a list of binary data into a List containing characters in the alphabet.
      *
      *  [data]
      *            a list containing binary data
-     * @return A byte array containing only the basen alphabetic character data
+     * returns A list containing only the base N alphabetic character data
      */
 
     List<int> encode(List<int> data) {
@@ -284,8 +284,7 @@ abstract class BaseNCodec  {
     String encodeString(String s) => new String.fromCharCodes(encode(s.codeUnits));
 
     /**
-     * Decode a string of Base N encoded characters [s] into a String. Assumes
-     * [s] can be decoded to valid characters
+     * Decode a string of Base N encoded characters [s] into a String.
      */
     String decodeString(String s) => new String.fromCharCodes(decode(s.codeUnits));
 
