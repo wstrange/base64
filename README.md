@@ -1,6 +1,6 @@
 Base64 Codec for Dart
 ========================
-A port of the Apache commons Base64 codec for the [Dart Language] [dart]. 
+A port of the Apache commons Base64 codec for the [Dart language][dart]. 
 
 Encodes/Decodes to Base64. Has options for url safe encoding, setting line lengths, etc.
 
