@@ -7,6 +7,16 @@ import 'dart:utf';
 import 'dart:math';
 
 
+
+var random = new Random();
+
+// fill list l with random bytes
+fillRandom(List<int> l) {
+  for(int j=0; j < l.length; ++j)
+    l[j] = random.nextInt(255);
+}
+
+
 /**
  * Test Base64 codec
  */
@@ -57,17 +67,14 @@ main() {
     expect(b.decodeString(b.encodeString(s)), equals(s));
   });
 
-  test('Random shit test', () {
+  test('Random bytes test', () {
     var b = new Base64.defaultCodec();
 
-    var l = new List<int>(1000);
-    var r = new Random();
+    var l = new List<int>(100);
+
+    fillRandom(l);
 
     for(int i=0; i < 100; ++i) {
-      // create a list with random bytes
-      for(int j=0; j < l.length; ++j)
-        l[j] = r.nextInt(255);
-
       // encode/decode
       var enc = b.encode(l);
       var dec = b.decode(enc);
@@ -76,6 +83,22 @@ main() {
       expect(dec,equals(l));
     }
   });
+
+  // test used for timing encoding times
+  test('Timed encoder test', () {
+    var l = new List<int>(1000);
+    var w = new Stopwatch()..start();
+    var b = new Base64.defaultCodec();
+    var iterations = 10000;
+
+    fillRandom(l);
+    for( int i =0; i < iterations; ++i ) {
+      b.encode(l);
+    }
+    print("Elapsed time for $iterations is ${w.elapsedMilliseconds} msec");
+
+
+  } );
 
 }
 

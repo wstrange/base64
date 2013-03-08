@@ -70,15 +70,27 @@ class Base64  extends BaseNCodec {
     // true if we should encode using urlsafe characters
     bool _isUrlSafe = false;
 
+    // Lookup tables for base64 characters
+    static final List<int> _codeList = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/'.codeUnits;
+    static final List<int> _urlSafeCodeList = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_'.codeUnits;
+
     /**
+     * Return the character used to encode the value 0..63
+     *
+     * NOT USED RIGHT NOW. See the comment below
+     */
+    int _lookupCode_NOT_USED(int code) => ( _isUrlSafe ? _urlSafeCodeList[code] : _codeList[code]);
+
+    /**
+     *
+     * Alternate lookup method using if/then/else. To date this
+     * is *slightly* faster than the above lookup tables. Revist this later.
+     *
      * Given a binary [code] in the range of 0 to 63, return
      * the character used to represent it in base64.
      * if [_isUrlSafe] is true, use _ and - instead
      * of + and /
      *
-     * Note: the Apache java code used a lookup table in place
-     * of this function (lookup table of 64 character codes).
-     * I dont think this is much more expensive, and it seems a bit simpler.
      */
     int _lookupCode(int code) {
       if( code >= 0 && code < 26 ) // A..Z
