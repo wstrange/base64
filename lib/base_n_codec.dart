@@ -237,8 +237,7 @@ abstract class BaseNCodec  {
     /**
      * Decodes a list containing characters in the Base-N alphabet.
      *
-     *  [data]
-     *            A list containing Base-N character data
+     *  [data] A list containing Base-N character data
      * returns a list containing binary data
      */
     List<int> decode(List<int> data) {
@@ -287,7 +286,6 @@ abstract class BaseNCodec  {
      * Decode a string of Base N encoded characters [s] into a String.
      */
     String decodeString(String s) => new String.fromCharCodes(decode(s.codeUnits));
-
 
 
     /**

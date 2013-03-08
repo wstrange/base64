@@ -1,9 +1,11 @@
 /*
- * This is a port (including most of the comments) of the Apache Commons Base64 Codec
+ * This is a port/translation (including many of the comments) of the Apache Commons Base64 Codec
  *
  * See http://svn.apache.org/viewvc/commons/proper/codec/trunk/src/main/java/org/apache/commons/codec/binary/Base64.java?view=co
  *
+ * Licensed as Apache 2.0 - See LICENSE
  *
+ * warren.strange@gmail.com
  */
 
 library base64;
@@ -62,16 +64,23 @@ class Base64  extends BaseNCodec {
      */
     static final _CHUNK_SEPARATOR = const ['\r', '\n'];
 
+    // holds list of line seperator chars (default CHUNK_SEPERATOR)
     List<int> _lineSeparator;
 
+    // true if we should encode using urlsafe characters
+    bool _isUrlSafe = false;
 
     /**
      * Given a binary [code] in the range of 0 to 63, return
      * the character used to represent it in base64.
-     * if [urlSafe] is true, use _ and - instead
+     * if [_isUrlSafe] is true, use _ and - instead
      * of + and /
+     *
+     * Note: the Apache java code used a lookup table in place
+     * of this function (lookup table of 64 character codes).
+     * I dont think this is much more expensive, and it seems a bit simpler.
      */
-    static int getCode(int code,bool urlSafe) {
+    int _lookupCode(int code) {
       if( code >= 0 && code < 26 ) // A..Z
         return code +65;
       if( code >= 26 && code < 52) // a..z
@@ -79,18 +88,11 @@ class Base64  extends BaseNCodec {
       if( code >= 52 && code < 62 ) // 0..9
         return (code - 52) + 48;
       if( code == 62)
-        return (urlSafe ?  45:43); // - and +
+        return (_isUrlSafe ?  45:43); // - and +
       if( code == 63 )
-        return (urlSafe ?  95:47); // _ and /
+        return (_isUrlSafe ?  95:47); // _ and /
       throw "code is out of range 0..63 $code";
     }
-
-    // instance method
-    int _lookupCode(int code) => getCode(code,_urlSafe);
-
-
-    // true if we should encode using urlsafe characters
-    bool _urlSafe = false;
 
     /**
      * This array is a lookup table that translates Unicode characters drawn from the "Base64 Alphabet" (as specified
@@ -117,7 +119,6 @@ class Base64  extends BaseNCodec {
     // Only one decode table currently; keep for consistency with Base32 code
    List<int> _decodeTable = _DECODE_TABLE;
 
-
     /**
      * Convenience variable to help us determine when our buffer is going to run out of room and needs resizing.
      * decodeSize = 3 + lineSeparator.length
@@ -132,10 +133,11 @@ class Base64  extends BaseNCodec {
 
 
     /**
-     * Creates a Base64 codec used for decoding (all modes) and encoding in both URL-unsafe and safe mode.
+     * Creates a Base64 codec used for decoding (all modes) and encoding in both URL-unsafe and safe mode. Most of the
+     * the time you will probably want to use one of the factory methods [urlSafeCodec] [defaultCodec]
      *
      *
-     * Line lengths that aren't multiples of 4 will still essentially end up being multiples of 4 in the encoded data.
+     * Line lengths that aren't multiples of 4 will still end up being multiples of 4 in the encoded data.
      *
      * When decoding all variants are supported.
      *
@@ -151,7 +153,7 @@ class Base64  extends BaseNCodec {
      *            operations. Decoding seamlessly handles both modes.
      *            *Note: no padding is added when using the URL-safe alphabet.*
      */
-    Base64(int lineLength, String lineSeparator, this._urlSafe):
+    Base64(int lineLength, String lineSeparator, this._isUrlSafe):
       super(_BYTES_PER_UNENCODED_BLOCK,
           _BYTES_PER_ENCODED_BLOCK,
              lineLength,
@@ -172,25 +174,49 @@ class Base64  extends BaseNCodec {
      * Creates a new Base64 encoder using Url-safe encoding
      * (no + or /), no line breaks, and no padding (=)
      */
-    Base64.urlSafe():super(_BYTES_PER_UNENCODED_BLOCK,
+    Base64._urlSafeCodec():super(_BYTES_PER_UNENCODED_BLOCK,
         _BYTES_PER_ENCODED_BLOCK, 0,0) {
       _encodeSize = _BYTES_PER_ENCODED_BLOCK;
       _decodeSize = _encodeSize - 1;
-      _urlSafe = true;
+      _isUrlSafe = true;
     }
 
     /**
      * Create a default codec.
-     * Used MIME_CHUNKSIZE line lenths (76  bytes), URL unsafe,
-     * and use padding (=)
+     * Used MIME_CHUNKSIZE line lenths (76  bytes), URL unsafe encoding (+/)
+     * with padding (=)
      */
-    Base64.codec():super(_BYTES_PER_UNENCODED_BLOCK,
+    Base64._codec():super(_BYTES_PER_UNENCODED_BLOCK,
         _BYTES_PER_ENCODED_BLOCK, MIME_CHUNK_SIZE,0) {
 
       _lineSeparator = _CHUNK_SEPARATOR;
       _encodeSize = _BYTES_PER_ENCODED_BLOCK + _lineSeparator.length;
       _decodeSize = _encodeSize - 1;
-      _urlSafe = false;
+      _isUrlSafe = false;
+    }
+
+    static Base64 _defaultCodec;
+    static Base64 _urlSafe;
+
+    /**
+     * Returns a default codec instance.
+     * Used MIME_CHUNKSIZE line lenths (76  bytes), URL unsafe encoding (+/)
+     * with padding (=)
+     */
+    factory Base64.defaultCodec() {
+      if( _defaultCodec == null)
+        _defaultCodec = new Base64._codec();
+      return _defaultCodec;
+    }
+
+    /**
+      * Return a Base64 encoder instance using Url-safe encoding
+     * (no + or /), no line breaks, and no padding (=)
+     */
+    factory Base64.urlSafeCodec() {
+      if( _urlSafe == null)
+        _urlSafe = new Base64._urlSafeCodec();
+      return _urlSafe;
     }
 
     /**
@@ -236,7 +262,7 @@ class Base64  extends BaseNCodec {
                     // remaining 2:
                     buffer[context.pos++] = _lookupCode((context.ibitWorkArea << 4) & _MASK_6BITS);
                     // URL-SAFE skips the padding to further reduce size.
-                    if ( ! _urlSafe) {
+                    if ( ! _isUrlSafe) {
                         buffer[context.pos++] = PAD;
                         buffer[context.pos++] = PAD;
                     }
@@ -247,7 +273,7 @@ class Base64  extends BaseNCodec {
                     buffer[context.pos++] = _lookupCode((context.ibitWorkArea >> 4) & _MASK_6BITS);
                     buffer[context.pos++] = _lookupCode((context.ibitWorkArea << 2) & _MASK_6BITS);
                     // URL-SAFE skips the padding to further reduce size.
-                    if ( ! _urlSafe) {
+                    if ( ! _isUrlSafe) {
                         buffer[context.pos++] = PAD;
                     }
                     break;
@@ -365,6 +391,5 @@ class Base64  extends BaseNCodec {
             }
         }
     }
-
 }
 

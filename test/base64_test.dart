@@ -1,5 +1,5 @@
-
 import 'package:unittest/unittest.dart';
+
 
 import 'package:base64/base64.dart';
 
@@ -7,14 +7,17 @@ import 'dart:utf';
 import 'dart:math';
 
 
+/**
+ * Test Base64 codec
+ */
 main() {
 
 
   test('Test basic encoding',  () {
     // default codec
-    var b = new Base64.codec();
+    var b = new Base64.defaultCodec();
     // encoder with urlSafe encoding
-    var b2 = new Base64.urlSafe();
+    var b2 = new Base64.urlSafeCodec();
 
     // test strings and their expected encoding
     var expected = { "a":     "YQ==",
@@ -55,7 +58,7 @@ main() {
   });
 
   test('Random shit test', () {
-    var b = new Base64.codec();
+    var b = new Base64.defaultCodec();
 
     var l = new List<int>(1000);
     var r = new Random();
