@@ -207,8 +207,6 @@ abstract class BaseNCodec  {
     int _readResults(List<int> b, int bPos, int bAvail, _Context context) {
         if (context.buffer != null) {
             var len = min(_available(context), bAvail);
-
-            //System.arraycopy(context.buffer, context.readPos, b, bPos, len);
             b.setRange(bPos, len, context.buffer, context.readPos);
             context.readPos += len;
             if (context.readPos >= context.pos) {
