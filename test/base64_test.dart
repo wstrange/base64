@@ -8,7 +8,7 @@ import 'dart:math';
 
 
 
-var random = new Random();
+var random = new Random(0xCAFEBABE);
 
 // fill list l with random bytes
 fillRandom(List<int> l) {
@@ -84,7 +84,7 @@ main() {
     }
   });
 
-  // test used for timing encoding times
+  // test used for timing encoding/decoding times
   test('Timed encoder test', () {
     var l = new List<int>(1000);
     var w = new Stopwatch()..start();
@@ -93,7 +93,8 @@ main() {
 
     fillRandom(l);
     for( int i =0; i < iterations; ++i ) {
-      b.encode(l);
+      var enc = b.encode(l);
+      var dec = b.decode(enc);
     }
     print("Elapsed time for $iterations is ${w.elapsedMilliseconds} msec");
 

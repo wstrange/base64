@@ -79,32 +79,9 @@ class Base64  extends BaseNCodec {
      *
      * NOT USED RIGHT NOW. See the comment below
      */
-    int _lookupCode_NOT_USED(int code) => ( _isUrlSafe ? _urlSafeCodeList[code] : _codeList[code]);
+    int _lookupCode(int code) => ( _isUrlSafe ? _urlSafeCodeList[code] : _codeList[code]);
 
-    /**
-     *
-     * Alternate lookup method using if/then/else. To date this
-     * is *slightly* faster than the above lookup tables. Revist this later.
-     *
-     * Given a binary [code] in the range of 0 to 63, return
-     * the character used to represent it in base64.
-     * if [_isUrlSafe] is true, use _ and - instead
-     * of + and /
-     *
-     */
-    int _lookupCode(int code) {
-      if( code >= 0 && code < 26 ) // A..Z
-        return code +65;
-      if( code >= 26 && code < 52) // a..z
-        return (code -26) + 97;
-      if( code >= 52 && code < 62 ) // 0..9
-        return (code - 52) + 48;
-      if( code == 62)
-        return (_isUrlSafe ?  45:43); // - and +
-      if( code == 63 )
-        return (_isUrlSafe ?  95:47); // _ and /
-      throw "code is out of range 0..63 $code";
-    }
+
 
     /**
      * This array is a lookup table that translates Unicode characters drawn from the "Base64 Alphabet" (as specified
@@ -306,7 +283,9 @@ class Base64  extends BaseNCodec {
                 if (b < 0) {
                     b += 256;
                 }
-                context.ibitWorkArea = (context.ibitWorkArea << 8) + b; //  BITS_PER_BYTE
+                // note trick of & 0xfffffff to avoid integer overlflow
+                // see https://groups.google.com/a/dartlang.org/d/msg/misc/6u9UNNLRjZw/YE9bV99lWyoJ
+                context.ibitWorkArea = ((context.ibitWorkArea << 8) & 0xffffffff) + b; // BITS_PER_BYTE
                 if (0 == context.modulus) { // 3 bytes = 24 bits = 4 * 6 bits to extract
                     buffer[context.pos++] = _lookupCode((context.ibitWorkArea >> 18) & _MASK_6BITS);
                     buffer[context.pos++] = _lookupCode((context.ibitWorkArea >> 12) & _MASK_6BITS);
@@ -365,7 +344,8 @@ class Base64  extends BaseNCodec {
                     var result = _DECODE_TABLE[b];
                     if (result >= 0) {
                         context.modulus = (context.modulus+1) % _BYTES_PER_ENCODED_BLOCK;
-                        context.ibitWorkArea = (context.ibitWorkArea << _BITS_PER_ENCODED_BYTE) + result;
+                        // https://groups.google.com/a/dartlang.org/d/msg/misc/6u9UNNLRjZw/YE9bV99lWyoJ
+                        context.ibitWorkArea = ((context.ibitWorkArea << _BITS_PER_ENCODED_BYTE) & 0xffffffff) + result;
                         if (context.modulus == 0) {
                             buffer[context.pos++] = ((context.ibitWorkArea >> 16) & _MASK_8BITS);
                             buffer[context.pos++] = ((context.ibitWorkArea >> 8) & _MASK_8BITS);
