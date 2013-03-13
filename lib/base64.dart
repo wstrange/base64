@@ -12,6 +12,9 @@ library base64;
 
 
 import 'dart:math';
+// for Uint8List  - speeds it up by 25% over List<int>. Only works in the VM
+//import 'dart:scalarlist';
+
 part 'base_n_codec.dart';
 
 /**
@@ -207,6 +210,17 @@ class Base64  extends BaseNCodec {
         _urlSafe = new Base64._urlSafeCodec();
       return _urlSafe;
     }
+
+    /** Convenience static method to decode base 64 String [s] to a String */
+    static String base64ToString(String s) => (new Base64.defaultCodec()).decodeString(s);
+    /** Convenience static method to encode String [s] to a base64 string */
+    static String stringToBase64(String s) => (new Base64.defaultCodec()).encodeString(s);
+
+    /** Convenience static method to decode base 64 list */
+    static List<int> base64ToList(List<int> l) => (new Base64.defaultCodec()).decode(l);
+    /** Convenience static method to encode a list to a base64 representation */
+    static List<int> listToBase64(List<int> l) => (new Base64.defaultCodec()).encode(l);
+
 
     /**
      *

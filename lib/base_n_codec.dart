@@ -6,6 +6,7 @@
  * http://svn.apache.org/viewvc/commons/proper/codec/trunk/src/main/java/org/apache/commons/codec/binary/BaseNCodec.java?revision=1435550&view=co
  */
 
+
 part of base64;
 
 
@@ -168,10 +169,13 @@ abstract class BaseNCodec  {
      */
     List<int> _resizeBuffer(_Context context) {
         if (context.buffer == null) {
-            context.buffer = new List<int>.fixedLength(_getDefaultBufferSize());
-            context.pos = 0;
-            context.readPos = 0;
+          // when the browser supports Uint8List change to this for 25% improvement
+          //context.buffer = new Uint8List(_getDefaultBufferSize());
+          context.buffer = new List<int>.fixedLength(_getDefaultBufferSize());
+          context.pos = 0;
+          context.readPos = 0;
         } else {
+            // See above re: Uint8List
             var b = new List<int>.fixedLength(context.buffer.length * _DEFAULT_BUFFER_RESIZE_FACTOR);
             b.setRange(0, context.buffer.length, context.buffer, 0);
             context.buffer = b;
@@ -191,6 +195,10 @@ abstract class BaseNCodec  {
     }
 
     /**
+     *
+     * TODO: Not used right now. see [_getResults]. Perhaps we can delete this?
+     * The original Java code
+     *
      * Extracts buffered data into the provided List, starting at position bPos, up to a maximum of bAvail
      * bytes. Returns how many bytes were actually extracted.
 
@@ -215,6 +223,16 @@ abstract class BaseNCodec  {
             return len;
         }
         return context.eof ? EOF : 0;
+    }
+
+    // alternate experimental method which returns a subset of the
+    // context buffer (vs. a copy).
+    // Does not seem to make any performance improvement - but
+    // the code is simpler so lets keep it.
+    List<int> _getResults(_Context context) {
+      var b = context.buffer.getRange(context.readPos,_available(context));
+      context.buffer = null;
+      return b;
     }
 
 
@@ -245,9 +263,10 @@ abstract class BaseNCodec  {
         var context = new _Context();
         _decodeList(data, 0, data.length, context);
         _decodeList(data, 0, EOF, context); // Notify decoder of EOF.
-        var result = new List<int>.fixedLength(context.pos);
-        _readResults(result, 0, result.length, context);
-        return result;
+        //var result = new List<int>.fixedLength(context.pos);
+        //_readResults(result, 0, result.length, context);
+        //return result;
+        return _getResults(context);
     }
 
 
@@ -269,9 +288,10 @@ abstract class BaseNCodec  {
         var context = new _Context();
         _encodeList(data, 0, data.length, context);
         _encodeList(data, 0, EOF, context); // Notify encoder of EOF.
-        var buf = new List<int>.fixedLength(context.pos - context.readPos);
-        _readResults(buf, 0, buf.length, context);
-        return buf;
+//        var buf = new List<int>.fixedLength(context.pos - context.readPos);
+//        _readResults(buf, 0, buf.length, context);
+//        return buf;
+        return _getResults(context);
     }
 
     /**

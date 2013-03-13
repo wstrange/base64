@@ -70,7 +70,7 @@ main() {
   test('Random bytes test', () {
     var b = new Base64.defaultCodec();
 
-    var l = new List<int>(100);
+    var l = new List<int>(1024);
 
     fillRandom(l);
 
@@ -85,19 +85,17 @@ main() {
   });
 
   // test used for timing encoding/decoding times
-  test('Timed encoder test', () {
+  test('Codec Timing test', () {
     var l = new List<int>(1000);
-    var w = new Stopwatch()..start();
     var b = new Base64.defaultCodec();
     var iterations = 10000;
-
     fillRandom(l);
+    var w = new Stopwatch()..start();
     for( int i =0; i < iterations; ++i ) {
       var enc = b.encode(l);
       var dec = b.decode(enc);
     }
-    print("Elapsed time for $iterations is ${w.elapsedMilliseconds} msec");
-
+    print("Elapsed time for $iterations iterations is ${w.elapsedMilliseconds} msec");
 
   } );
 
