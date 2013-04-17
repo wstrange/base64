@@ -69,7 +69,6 @@ main() {
 
   test('Random bytes test', () {
     var b = new Base64.defaultCodec();
-
     var l = new List<int>(1024);
 
     fillRandom(l);
@@ -85,7 +84,7 @@ main() {
   });
 
   // test used for timing encoding/decoding times
-  test('Codec Timing test', () {
+  test('CODEC benchmark test', () {
     var l = new List<int>(1000);
     var b = new Base64.defaultCodec();
     var iterations = 10000;

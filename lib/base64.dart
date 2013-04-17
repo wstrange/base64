@@ -12,8 +12,7 @@ library base64;
 
 
 import 'dart:math';
-// for Uint8List  - speeds it up by 25% over List<int>. Only works in the VM
-//import 'dart:scalarlist';
+import 'dart:typeddata';
 
 part 'base_n_codec.dart';
 
@@ -38,7 +37,6 @@ part 'base_n_codec.dart';
  *
  */
 class Base64  extends BaseNCodec {
-
     /**
      * BASE32 characters are 6 bits in length.
      * They are formed by taking a block of 3 octets to form a 24-bit string,
@@ -56,16 +54,16 @@ class Base64  extends BaseNCodec {
      *
      * See <http://www.ietf.org/rfc/rfc2045.txt>
      */
-    static final int MIME_CHUNK_SIZE = 76;
+    static const int MIME_CHUNK_SIZE = 76;
 
     /** Mask used to extract 6 bits, used when encoding */
-    static final int _MASK_6BITS = 0x3f;
+    const int _MASK_6BITS = 0x3f;
 
     /**
      * Chunk separator per RFC 2045 section 2.1.
      *see [RFC 2045 section 2.1] (http://www.ietf.org/rfc/rfc2045.txt)
      */
-    static final _CHUNK_SEPARATOR = const ['\r', '\n'];
+    const  _CHUNK_SEPARATOR = const ['\r', '\n'];
 
     // holds list of line seperator chars (default CHUNK_SEPERATOR)
     List<int> _lineSeparator;
@@ -80,10 +78,8 @@ class Base64  extends BaseNCodec {
     /**
      * Return the character used to encode the value 0..63
      *
-     * NOT USED RIGHT NOW. See the comment below
      */
     int _lookupCode(int code) => ( _isUrlSafe ? _urlSafeCodeList[code] : _codeList[code]);
-
 
 
     /**
@@ -97,7 +93,7 @@ class Base64  extends BaseNCodec {
      * Thanks to "commons" project in ws.apache.org for this code.
      * http://svn.apache.org/repos/asf/webservices/commons/trunk/modules/util/
      */
-    static final _DECODE_TABLE = const [
+    static const _DECODE_TABLE = const [
             -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
             -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
             -1, -1, -1, -1, -1, -1, -1, -1, -1, 62, -1, 62, -1, 63, 52, 53, 54,
@@ -106,10 +102,6 @@ class Base64  extends BaseNCodec {
             24, 25, -1, -1, -1, -1, 63, -1, 26, 27, 28, 29, 30, 31, 32, 33, 34,
             35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51
     ];
-
-
-    // Only one decode table currently; keep for consistency with Base32 code
-   List<int> _decodeTable = _DECODE_TABLE;
 
     /**
      * Convenience variable to help us determine when our buffer is going to run out of room and needs resizing.
@@ -254,30 +246,30 @@ class Base64  extends BaseNCodec {
             if (0 == context.modulus && _lineLength == 0) {
                 return; // no leftovers to process and not using chunking
             }
-            var buffer = _ensureBufferSize(_encodeSize, context);
+            context.ensureBufferSize(_encodeSize);
             var savedPos = context.pos;
             switch (context.modulus) { // 0-2
                 case 0 : // nothing to do here
                     break;
                 case 1 : // 8 bits = 6 + 2
                     // top 6 bits:
-                    buffer[context.pos++] = _lookupCode((context.ibitWorkArea >> 2) & _MASK_6BITS);
+                    context.addToBuffer(_lookupCode((context.ibitWorkArea >> 2) & _MASK_6BITS) );
                     // remaining 2:
-                    buffer[context.pos++] = _lookupCode((context.ibitWorkArea << 4) & _MASK_6BITS);
+                    context.addToBuffer(_lookupCode((context.ibitWorkArea << 4) & _MASK_6BITS));
                     // URL-SAFE skips the padding to further reduce size.
                     if ( ! _isUrlSafe) {
-                        buffer[context.pos++] = PAD;
-                        buffer[context.pos++] = PAD;
+                      context.addToBuffer(PAD); // neeed two PAD chars
+                      context.addToBuffer(PAD);
                     }
                     break;
 
                 case 2 : // 16 bits = 6 + 6 + 4
-                    buffer[context.pos++] = _lookupCode((context.ibitWorkArea >> 10) & _MASK_6BITS);
-                    buffer[context.pos++] = _lookupCode((context.ibitWorkArea >> 4) & _MASK_6BITS);
-                    buffer[context.pos++] = _lookupCode((context.ibitWorkArea << 2) & _MASK_6BITS);
+                  context.addToBuffer(_lookupCode((context.ibitWorkArea >> 10) & _MASK_6BITS));
+                  context.addToBuffer(_lookupCode((context.ibitWorkArea >> 4) & _MASK_6BITS));
+                  context.addToBuffer(_lookupCode((context.ibitWorkArea << 2) & _MASK_6BITS));
                     // URL-SAFE skips the padding to further reduce size.
                     if ( ! _isUrlSafe) {
-                        buffer[context.pos++] = PAD;
+                      context.addToBuffer(PAD);
                     }
                     break;
                 default:
@@ -286,12 +278,11 @@ class Base64  extends BaseNCodec {
             context.currentLinePos += context.pos - savedPos; // keep track of current line position
             // if currentPos == 0 we are at the start of a line, so don't add CRLF
             if (_lineLength > 0 && context.currentLinePos > 0) {
-                buffer.setRange(context.pos, _lineSeparator.length, _lineSeparator, 0);
-                context.pos += _lineSeparator.length;
+                context.addListToBuffer(_lineSeparator);
             }
         } else {
             for (int i = 0; i < inAvail; i++) {
-                var buffer = _ensureBufferSize(_encodeSize, context);
+                context.ensureBufferSize(_encodeSize);
                 context.modulus = (context.modulus+1) % _BYTES_PER_UNENCODED_BLOCK;
                 int b = inList[inPos++];
                 if (b < 0) {
@@ -301,15 +292,14 @@ class Base64  extends BaseNCodec {
                 // see https://groups.google.com/a/dartlang.org/d/msg/misc/6u9UNNLRjZw/YE9bV99lWyoJ
                 context.ibitWorkArea = ((context.ibitWorkArea << 8) & 0xffffffff) + b; // BITS_PER_BYTE
                 if (0 == context.modulus) { // 3 bytes = 24 bits = 4 * 6 bits to extract
-                    buffer[context.pos++] = _lookupCode((context.ibitWorkArea >> 18) & _MASK_6BITS);
-                    buffer[context.pos++] = _lookupCode((context.ibitWorkArea >> 12) & _MASK_6BITS);
-                    buffer[context.pos++] = _lookupCode((context.ibitWorkArea >> 6) & _MASK_6BITS);
-                    buffer[context.pos++] = _lookupCode(context.ibitWorkArea & _MASK_6BITS);
+                    context.addToBuffer(_lookupCode((context.ibitWorkArea >> 18) & _MASK_6BITS));
+                    context.addToBuffer(_lookupCode((context.ibitWorkArea >> 12) & _MASK_6BITS));
+                    context.addToBuffer(_lookupCode((context.ibitWorkArea >> 6) & _MASK_6BITS));
+                    context.addToBuffer(_lookupCode(context.ibitWorkArea & _MASK_6BITS));
                     context.currentLinePos += _BYTES_PER_ENCODED_BLOCK;
                     if (_lineLength > 0 && _lineLength <= context.currentLinePos) {
-                        buffer.setRange(context.pos, _lineSeparator.length, _lineSeparator, 0);
-                        context.pos += _lineSeparator.length;
-                        context.currentLinePos = 0;
+                      context.addListToBuffer(_lineSeparator);
+                      context.currentLinePos = 0;
                     }
                 }
             }
@@ -330,14 +320,10 @@ class Base64  extends BaseNCodec {
      * http://svn.apache.org/repos/asf/webservices/commons/trunk/modules/util/
      *
      *
-     * [in]
-     *            byte[] array of ascii data to base64 decode.
-     * [inPos]
-     *            Position to start reading data from.
-     * [inAvail]
-     *            Amount of bytes available from input for encoding.
-     * [context]
-     *            the context to be used
+     * [in] ascii data to base64 decode.
+     * [inPos] position to start reading data from.
+     * [inAvail] amount of bytes available from input for encoding.
+     * [context] the context to be used
      */
    _decodeList(List<int> inList, int inPos, final int inAvail, _Context context) {
         if (context.eof) {
@@ -347,7 +333,7 @@ class Base64  extends BaseNCodec {
             context.eof = true;
         }
         for (int i = 0; i < inAvail; i++) {
-            var buffer = _ensureBufferSize(_decodeSize, context);
+            var buffer = context.ensureBufferSize(_decodeSize);
             var b = inList[inPos++];
             if (b == PAD) {
                 // We're done.
@@ -361,9 +347,9 @@ class Base64  extends BaseNCodec {
                         // https://groups.google.com/a/dartlang.org/d/msg/misc/6u9UNNLRjZw/YE9bV99lWyoJ
                         context.ibitWorkArea = ((context.ibitWorkArea << _BITS_PER_ENCODED_BYTE) & 0xffffffff) + result;
                         if (context.modulus == 0) {
-                            buffer[context.pos++] = ((context.ibitWorkArea >> 16) & _MASK_8BITS);
-                            buffer[context.pos++] = ((context.ibitWorkArea >> 8) & _MASK_8BITS);
-                            buffer[context.pos++] = (context.ibitWorkArea & _MASK_8BITS);
+                            context.addToBuffer(((context.ibitWorkArea >> 16) & _MASK_8BITS));
+                            context.addToBuffer(((context.ibitWorkArea >> 8) & _MASK_8BITS));
+                            context.addToBuffer((context.ibitWorkArea & _MASK_8BITS));
                         }
                     }
                 }
@@ -374,7 +360,7 @@ class Base64  extends BaseNCodec {
         // EOF (-1) and first time '=' character is encountered in stream.
         // This approach makes the '=' padding characters completely optional.
         if (context.eof && context.modulus != 0) {
-            var buffer = _ensureBufferSize(_decodeSize, context);
+            var buffer = context.ensureBufferSize(_decodeSize);
 
             // We have some spare bits remaining
             // Output all whole multiples of 8 bits and ignore the rest
@@ -385,12 +371,12 @@ class Base64  extends BaseNCodec {
                     break;
                 case 2 : // 12 bits = 8 + 4
                     context.ibitWorkArea = context.ibitWorkArea >> 4; // dump the extra 4 bits
-                    buffer[context.pos++] = ((context.ibitWorkArea) & _MASK_8BITS);
+                    context.addToBuffer(((context.ibitWorkArea) & _MASK_8BITS));
                     break;
                 case 3 : // 18 bits = 8 + 8 + 2
                     context.ibitWorkArea = context.ibitWorkArea >> 2; // dump 2 bits
-                    buffer[context.pos++] = ((context.ibitWorkArea >> 8) & _MASK_8BITS);
-                    buffer[context.pos++] = ((context.ibitWorkArea) & _MASK_8BITS);
+                    context.addToBuffer(((context.ibitWorkArea >> 8) & _MASK_8BITS));
+                    context.addToBuffer(((context.ibitWorkArea) & _MASK_8BITS));
                     break;
                 default:
                     throw "Impossible modulus ${context.modulus}";

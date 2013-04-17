@@ -1,4 +1,3 @@
-
 /*
  * Port of BaseNCodec from Apache commons
  *
@@ -14,6 +13,8 @@ part of base64;
  * holds state of encoding/decoding
  */
 class _Context {
+
+  const int _DEFAULT_BUFFER_RESIZE_FACTOR = 2;
 
   /**
    * Place holder for the bytes we're dealing with for our based logic.
@@ -59,6 +60,65 @@ class _Context {
    * variable helps track that.
    */
   int modulus =0;
+
+  /**
+   * Returns true if this object has buffered data for reading.
+   */
+  bool _hasData() => buffer != null;
+
+  /**
+   * Returns the amount of buffered data available for reading.
+  *
+   *  context the context to be used
+   * return The amount of buffered data available for reading.
+   */
+  int _available() => buffer != null ? pos - readPos : 0;
+
+  // get the results from the context buffer. Returns a new list
+  List<int> getResults() {
+    var b =buffer.sublist(readPos,pos);
+    buffer = null;
+    return b;
+  }
+
+
+  /**
+   * Increases our buffer by the {@link #DEFAULT_BUFFER_RESIZE_FACTOR}.
+   *
+   */
+  List<int> resizeBuffer(int bufsize) {
+    if (buffer == null) {
+      buffer = new Uint8List(bufsize);
+      pos = 0;
+      readPos = 0;
+    } else {
+      var b = new Uint8List(buffer.length * _DEFAULT_BUFFER_RESIZE_FACTOR);
+      b.setRange(0, buffer.length, buffer, 0);
+      buffer = b;
+    }
+    return buffer;
+  }
+
+  /**
+   * Ensure that the buffer has room for [size] bytes
+  *
+   */
+  List<int> ensureBufferSize(int size){
+    if ((buffer == null) || (buffer.length < (pos + size))){
+      return resizeBuffer(size);
+    }
+    return buffer;
+  }
+
+  // add a single byte value to the buffer. Advance the pointer
+  addToBuffer(int value) => buffer[pos++] = value;
+
+  void addListToBuffer(List<int> l){
+    buffer.setRange(pos, pos + l.length,l);
+    pos += l.length;
+  }
+
+
 }
 
 
@@ -72,7 +132,7 @@ abstract class BaseNCodec  {
     /**
      * EOF
      */
-    static final int EOF = -1;
+    const int EOF = -1;
 
     /**
      * PEM chunk size per RFC 1421 section 4.3.2.4.
@@ -83,20 +143,17 @@ abstract class BaseNCodec  {
      *
      * see <http://tools.ietf.org/html/rfc1421>
      */
-    static final int PEM_CHUNK_SIZE = 64;
-
-    static final int _DEFAULT_BUFFER_RESIZE_FACTOR = 2;
-
+    const int PEM_CHUNK_SIZE = 64;
     /**
      * Defines the default buffer size - currently
      * - must be large enough for at least one encoded block+separator
      *
      * TODO: Does this really need to be this big?
      */
-    static final int _DEFAULT_BUFFER_SIZE = 8192;
+    const int _DEFAULT_BUFFER_SIZE = 8192;
 
     /** Mask used to extract 8 bits, used in decoding bytes */
-    final int _MASK_8BITS = 0xff;
+    const int _MASK_8BITS = 0xff;
 
     /**
      * Byte used to pad output.
@@ -142,102 +199,14 @@ abstract class BaseNCodec  {
     }
 
     /**
-     * Returns true if this object has buffered data for reading.
-     */
-    bool _hasData(_Context context) => context.buffer != null;
-
-    /**
-     * Returns the amount of buffered data available for reading.
-     *
-     *  context the context to be used
-     * return The amount of buffered data available for reading.
-     */
-    int _available(_Context context) =>
-        context.buffer != null ? context.pos - context.readPos : 0;
-
-
-    /**
      * Get the default buffer size. Can be overridden.
      *
      * @return {@link #DEFAULT_BUFFER_SIZE}
      */
     int _getDefaultBufferSize() => _DEFAULT_BUFFER_SIZE;
 
-    /**
-     * Increases our buffer by the {@link #DEFAULT_BUFFER_RESIZE_FACTOR}.
-     *  context the context to be used
-     */
-    List<int> _resizeBuffer(_Context context) {
-        if (context.buffer == null) {
-          // when the browser supports Uint8List change to this for 25% improvement
-          //context.buffer = new Uint8List(_getDefaultBufferSize());
-          context.buffer = new List<int>.fixedLength(_getDefaultBufferSize());
-          context.pos = 0;
-          context.readPos = 0;
-        } else {
-            // See above re: Uint8List
-            var b = new List<int>.fixedLength(context.buffer.length * _DEFAULT_BUFFER_RESIZE_FACTOR);
-            b.setRange(0, context.buffer.length, context.buffer, 0);
-            context.buffer = b;
-        }
-        return context.buffer;
-    }
-
-    /**
-     * Ensure that the buffer has room for [size] bytes
-     *
-     */
-    List<int> _ensureBufferSize(int size, _Context context){
-        if ((context.buffer == null) || (context.buffer.length < context.pos + size)){
-            return _resizeBuffer(context);
-        }
-        return context.buffer;
-    }
-
-    /**
-     *
-     * TODO: Not used right now. see [_getResults]. Perhaps we can delete this?
-     * The original Java code
-     *
-     * Extracts buffered data into the provided List, starting at position bPos, up to a maximum of bAvail
-     * bytes. Returns how many bytes were actually extracted.
-
-     *  [b]
-     *            List to extract the buffered data into.
-     *  bPos
-     *            position in byte[] array to start extraction at.
-     *  bAvail
-     *            amount of bytes we're allowed to extract. We may extract fewer (if fewer are available).
-     *  context
-     *            the context to be used
-     * returns The number of bytes successfully extracted into the provided List
-     */
-    int _readResults(List<int> b, int bPos, int bAvail, _Context context) {
-        if (context.buffer != null) {
-            var len = min(_available(context), bAvail);
-            b.setRange(bPos, len, context.buffer, context.readPos);
-            context.readPos += len;
-            if (context.readPos >= context.pos) {
-                context.buffer = null; // so hasData() will return false, and this method can return -1
-            }
-            return len;
-        }
-        return context.eof ? EOF : 0;
-    }
-
-    // alternate experimental method which returns a subset of the
-    // context buffer (vs. a copy).
-    // Does not seem to make any performance improvement - but
-    // the code is simpler so lets keep it.
-    List<int> _getResults(_Context context) {
-      var b = context.buffer.getRange(context.readPos,_available(context));
-      context.buffer = null;
-      return b;
-    }
-
-
     // white space characters
-    static List<int> _whiteSp = ' \n\r\t'.codeUnits;
+    static final List<int> _whiteSp = ' \n\r\t'.codeUnits;
     /**
      * Checks if a byte value is whitespace or not.
      * Whitespace is taken to mean: space, tab, CR, LF
@@ -263,10 +232,7 @@ abstract class BaseNCodec  {
         var context = new _Context();
         _decodeList(data, 0, data.length, context);
         _decodeList(data, 0, EOF, context); // Notify decoder of EOF.
-        //var result = new List<int>.fixedLength(context.pos);
-        //_readResults(result, 0, result.length, context);
-        //return result;
-        return _getResults(context);
+        return context.getResults();
     }
 
 
@@ -288,10 +254,7 @@ abstract class BaseNCodec  {
         var context = new _Context();
         _encodeList(data, 0, data.length, context);
         _encodeList(data, 0, EOF, context); // Notify encoder of EOF.
-//        var buf = new List<int>.fixedLength(context.pos - context.readPos);
-//        _readResults(buf, 0, buf.length, context);
-//        return buf;
-        return _getResults(context);
+        return context.getResults();
     }
 
     /**
@@ -322,5 +285,7 @@ abstract class BaseNCodec  {
         }
         return len;
     }
+
+
 }
 
