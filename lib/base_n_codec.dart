@@ -23,25 +23,21 @@ class _Context {
   int ibitWorkArea = 0;
 
   /**
-   * Place holder for the bytes we're dealing with for our based logic.
-   * Bitwise operations store and extract the encoding or decoding from this variable.
-   */
-  int lbitWorkArea = 0;
-
-  /**
    * Buffer for streaming.
    */
-  List<int> buffer;
+ // List<int> buffer = new Uint8List(2024);
+    List<int> buffer;
+
 
   /**
    * Position where next character should be written in the buffer.
    */
-  int pos;
+  int pos =0;
 
   /**
    * Position where next character should be read from the buffer.
    */
-  int readPos;
+  int readPos = 0;
 
   /**
    * Boolean flag to indicate the EOF has been reached. Once EOF has been reached, this object becomes useless,
@@ -100,7 +96,7 @@ class _Context {
   }
 
   /**
-   * Ensure that the buffer has room for [size] bytes
+   * Ensure that the buffer has room for [size] more bytes
   *
    */
   List<int> ensureBufferSize(int size){
@@ -230,14 +226,13 @@ abstract class BaseNCodec  {
             return data;
         }
         var context = new _Context();
-        _decodeList(data, 0, data.length, context);
-        _decodeList(data, 0, EOF, context); // Notify decoder of EOF.
+        _decodeList(data, context);
         return context.getResults();
     }
 
 
     // abstract method. Subclass to provide implementation
-    void _encodeList(List<int> inList, int inPos, int inAvail, _Context context);
+    void _encodeList(List<int> inList, _Context context);
 
     /**
      * Encodes a list of binary data into a List containing characters in the alphabet.
@@ -252,8 +247,8 @@ abstract class BaseNCodec  {
             return data;
         }
         var context = new _Context();
-        _encodeList(data, 0, data.length, context);
-        _encodeList(data, 0, EOF, context); // Notify encoder of EOF.
+        _encodeList(data, context);
+
         return context.getResults();
     }
 
@@ -270,9 +265,9 @@ abstract class BaseNCodec  {
 
 
     /**
-     * Calculates the amount of space needed to encode the supplied array.
+     * Calculates the amount of space needed to encode the [data] array.
      *
-     *  [data] - List which will later be encoded
+     *  [data] - List which will be encoded
      *
      */
     int getEncodedLength(List<int> data) {

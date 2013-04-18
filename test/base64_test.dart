@@ -22,6 +22,10 @@ fillRandom(List<int> l) {
  */
 main() {
 
+  test("debug", () {
+    var b = new Base64.defaultCodec();
+    expect( b.encodeString("a"), equals("YQ=="));
+  });
 
   test('Test basic encoding',  () {
     // default codec
@@ -69,25 +73,27 @@ main() {
 
   test('Random bytes test', () {
     var b = new Base64.defaultCodec();
-    var l = new List<int>(1024);
 
-    fillRandom(l);
 
     for(int i=0; i < 100; ++i) {
+      // create random length list...
+      var l = new List<int>(random.nextInt(2048));
+      // fill it with random bytes
+      fillRandom(l);
       // encode/decode
       var enc = b.encode(l);
       var dec = b.decode(enc);
-      //print("list $l Encoded = $enc decoded = $dec");
-      // see if we got back our original byte list
+      // see if we got back what we started with
       expect(dec,equals(l));
     }
   });
+
+  const iterations = 10000;
 
   // test used for timing encoding/decoding times
   test('CODEC benchmark test', () {
     var l = new List<int>(1000);
     var b = new Base64.defaultCodec();
-    var iterations = 10000;
     fillRandom(l);
     var w = new Stopwatch()..start();
     for( int i =0; i < iterations; ++i ) {

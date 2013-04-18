@@ -225,85 +225,74 @@ class Base64  extends BaseNCodec {
      * Thanks to "commons" project in ws.apache.org for the bitwise operations, and general approach.
      * http://svn.apache.org/repos/asf/webservices/commons/trunk/modules/util/
      *
-     * [in]
-     *             array of binary data to base64 encode.
-     * [inPos]
-     *            Position to start reading data from.
-     * [inAvail]
-     *            Amount of bytes available from input for encoding.
-     * [context]
-     *            the context to be used
+     * [iListn] binary data to base64 encode.
+     * [context] the context to be used
      */
+    void _encodeList(List<int> inList, _Context context) {
+      int ibitWorkArea = 0;
+      int modulus = 0;
+      context.ensureBufferSize(getEncodedLength(inList));
 
-    void _encodeList(List<int> inList, int inPos, int inAvail, _Context context) {
-        if (context.eof) {
-            return;
+      for (int i = 0; i < inList.length; i++) {
+        modulus = (modulus+1) % _BYTES_PER_UNENCODED_BLOCK;
+        int b = inList[i];
+        if (b < 0) {
+          b += 256;
         }
-        // inAvail < 0 is how we're informed of EOF in the underlying data we're
-        // encoding.
-        if (inAvail < 0) {
-            context.eof = true;
-            if (0 == context.modulus && _lineLength == 0) {
-                return; // no leftovers to process and not using chunking
-            }
-            context.ensureBufferSize(_encodeSize);
-            var savedPos = context.pos;
-            switch (context.modulus) { // 0-2
-                case 0 : // nothing to do here
-                    break;
-                case 1 : // 8 bits = 6 + 2
-                    // top 6 bits:
-                    context.addToBuffer(_lookupCode((context.ibitWorkArea >> 2) & _MASK_6BITS) );
-                    // remaining 2:
-                    context.addToBuffer(_lookupCode((context.ibitWorkArea << 4) & _MASK_6BITS));
-                    // URL-SAFE skips the padding to further reduce size.
-                    if ( ! _isUrlSafe) {
-                      context.addToBuffer(PAD); // neeed two PAD chars
-                      context.addToBuffer(PAD);
-                    }
-                    break;
+        // note trick of & 0xfffffff to avoid integer overlflow
+        // see https://groups.google.com/a/dartlang.org/d/msg/misc/6u9UNNLRjZw/YE9bV99lWyoJ
+        ibitWorkArea = ((ibitWorkArea << 8) & 0xffffffff) + b; // BITS_PER_BYTE
+        if (0 == modulus) { // 3 bytes = 24 bits = 4 * 6 bits to extract
+          context.addToBuffer(_lookupCode((ibitWorkArea >> 18) & _MASK_6BITS));
+          context.addToBuffer(_lookupCode((ibitWorkArea >> 12) & _MASK_6BITS));
+          context.addToBuffer(_lookupCode((ibitWorkArea >> 6) & _MASK_6BITS));
+          context.addToBuffer(_lookupCode(ibitWorkArea & _MASK_6BITS));
+          context.currentLinePos += _BYTES_PER_ENCODED_BLOCK;
+          if (_lineLength > 0 && _lineLength <= context.currentLinePos) {
+            context.addListToBuffer(_lineSeparator);
+            context.currentLinePos = 0;
+          }
+        }
+      }
 
-                case 2 : // 16 bits = 6 + 6 + 4
-                  context.addToBuffer(_lookupCode((context.ibitWorkArea >> 10) & _MASK_6BITS));
-                  context.addToBuffer(_lookupCode((context.ibitWorkArea >> 4) & _MASK_6BITS));
-                  context.addToBuffer(_lookupCode((context.ibitWorkArea << 2) & _MASK_6BITS));
-                    // URL-SAFE skips the padding to further reduce size.
-                    if ( ! _isUrlSafe) {
-                      context.addToBuffer(PAD);
-                    }
-                    break;
-                default:
-                    throw "Impossible modulus ${context.modulus}";
-            }
-            context.currentLinePos += context.pos - savedPos; // keep track of current line position
-            // if currentPos == 0 we are at the start of a line, so don't add CRLF
-            if (_lineLength > 0 && context.currentLinePos > 0) {
-                context.addListToBuffer(_lineSeparator);
-            }
-        } else {
-            for (int i = 0; i < inAvail; i++) {
-                context.ensureBufferSize(_encodeSize);
-                context.modulus = (context.modulus+1) % _BYTES_PER_UNENCODED_BLOCK;
-                int b = inList[inPos++];
-                if (b < 0) {
-                    b += 256;
-                }
-                // note trick of & 0xfffffff to avoid integer overlflow
-                // see https://groups.google.com/a/dartlang.org/d/msg/misc/6u9UNNLRjZw/YE9bV99lWyoJ
-                context.ibitWorkArea = ((context.ibitWorkArea << 8) & 0xffffffff) + b; // BITS_PER_BYTE
-                if (0 == context.modulus) { // 3 bytes = 24 bits = 4 * 6 bits to extract
-                    context.addToBuffer(_lookupCode((context.ibitWorkArea >> 18) & _MASK_6BITS));
-                    context.addToBuffer(_lookupCode((context.ibitWorkArea >> 12) & _MASK_6BITS));
-                    context.addToBuffer(_lookupCode((context.ibitWorkArea >> 6) & _MASK_6BITS));
-                    context.addToBuffer(_lookupCode(context.ibitWorkArea & _MASK_6BITS));
-                    context.currentLinePos += _BYTES_PER_ENCODED_BLOCK;
-                    if (_lineLength > 0 && _lineLength <= context.currentLinePos) {
-                      context.addListToBuffer(_lineSeparator);
-                      context.currentLinePos = 0;
-                    }
-                }
-            }
-        }
+      //  now add on any remaining bits in the modulus
+      if (0 == modulus && _lineLength == 0) {
+        return; // no leftovers to process and not using chunking
+      }
+
+      var savedPos = context.pos;
+      switch (modulus) { // 0-2
+        case 0 : // nothing to do here
+          break;
+        case 1 : // 8 bits = 6 + 2
+          // top 6 bits:
+          context.addToBuffer(_lookupCode((ibitWorkArea >> 2) & _MASK_6BITS) );
+          // remaining 2:
+          context.addToBuffer(_lookupCode((ibitWorkArea << 4) & _MASK_6BITS));
+          // URL-SAFE skips the padding to further reduce size.
+          if ( ! _isUrlSafe) {
+            context.addToBuffer(PAD); // neeed two PAD chars
+            context.addToBuffer(PAD);
+          }
+          break;
+
+        case 2 : // 16 bits = 6 + 6 + 4
+          context.addToBuffer(_lookupCode((ibitWorkArea >> 10) & _MASK_6BITS));
+          context.addToBuffer(_lookupCode((ibitWorkArea >> 4) & _MASK_6BITS));
+          context.addToBuffer(_lookupCode((ibitWorkArea << 2) & _MASK_6BITS));
+          // URL-SAFE skips the padding to further reduce size.
+          if ( ! _isUrlSafe) {
+            context.addToBuffer(PAD);
+          }
+          break;
+        default:
+          throw "Impossible modulus ${context.modulus}";
+      }
+      context.currentLinePos += context.pos - savedPos; // keep track of current line position
+      // if currentPos == 0 we are at the start of a line, so don't add CRLF
+      if (_lineLength > 0 && context.currentLinePos > 0) {
+        context.addListToBuffer(_lineSeparator);
+      }
     }
 
     /**
@@ -325,63 +314,61 @@ class Base64  extends BaseNCodec {
      * [inAvail] amount of bytes available from input for encoding.
      * [context] the context to be used
      */
-   _decodeList(List<int> inList, int inPos, final int inAvail, _Context context) {
-        if (context.eof) {
-            return;
-        }
-        if (inAvail < 0) {
-            context.eof = true;
-        }
-        for (int i = 0; i < inAvail; i++) {
-            var buffer = context.ensureBufferSize(_decodeSize);
-            var b = inList[inPos++];
-            if (b == PAD) {
-                // We're done.
-                context.eof = true;
-                break;
-            } else {
-                if (b >= 0 && b < _DECODE_TABLE.length) {
-                    var result = _DECODE_TABLE[b];
-                    if (result >= 0) {
-                        context.modulus = (context.modulus+1) % _BYTES_PER_ENCODED_BLOCK;
-                        // https://groups.google.com/a/dartlang.org/d/msg/misc/6u9UNNLRjZw/YE9bV99lWyoJ
-                        context.ibitWorkArea = ((context.ibitWorkArea << _BITS_PER_ENCODED_BYTE) & 0xffffffff) + result;
-                        if (context.modulus == 0) {
-                            context.addToBuffer(((context.ibitWorkArea >> 16) & _MASK_8BITS));
-                            context.addToBuffer(((context.ibitWorkArea >> 8) & _MASK_8BITS));
-                            context.addToBuffer((context.ibitWorkArea & _MASK_8BITS));
-                        }
-                    }
-                }
-            }
-        }
+   _decodeList(List<int> inList, _Context context) {
+     int ibitWorkArea = 0;
+     bool eof = false;
+     int modulus = 0;
 
-        // Two forms of EOF as far as base64 decoder is concerned: actual
-        // EOF (-1) and first time '=' character is encountered in stream.
-        // This approach makes the '=' padding characters completely optional.
-        if (context.eof && context.modulus != 0) {
-            var buffer = context.ensureBufferSize(_decodeSize);
+     // todo: Fix this. It can be smaller than the original by quite a bit
+     var buffer = context.ensureBufferSize(inList.length);
 
-            // We have some spare bits remaining
-            // Output all whole multiples of 8 bits and ignore the rest
-            switch (context.modulus) {
-//              case 0 : // impossible, as excluded above
-                case 1 : // 6 bits - ignore entirely
-                    // TODO not currently tested; perhaps it is impossible?
-                    break;
-                case 2 : // 12 bits = 8 + 4
-                    context.ibitWorkArea = context.ibitWorkArea >> 4; // dump the extra 4 bits
-                    context.addToBuffer(((context.ibitWorkArea) & _MASK_8BITS));
-                    break;
-                case 3 : // 18 bits = 8 + 8 + 2
-                    context.ibitWorkArea = context.ibitWorkArea >> 2; // dump 2 bits
-                    context.addToBuffer(((context.ibitWorkArea >> 8) & _MASK_8BITS));
-                    context.addToBuffer(((context.ibitWorkArea) & _MASK_8BITS));
-                    break;
-                default:
-                    throw "Impossible modulus ${context.modulus}";
-            }
-        }
+     for (int i = 0; i < inList.length; i++) {
+      var b = inList[i];
+      if (b == PAD) {
+          // We're done.
+          eof = true;
+          break;
+      } else {
+          if (b >= 0 && b < _DECODE_TABLE.length) {
+              var result = _DECODE_TABLE[b];
+              if (result >= 0) {
+                  modulus = (modulus+1) % _BYTES_PER_ENCODED_BLOCK;
+                  // https://groups.google.com/a/dartlang.org/d/msg/misc/6u9UNNLRjZw/YE9bV99lWyoJ
+                  ibitWorkArea = ((ibitWorkArea << _BITS_PER_ENCODED_BYTE) & 0xffffffff) + result;
+                  if (modulus == 0) {
+                      context.addToBuffer(((ibitWorkArea >> 16) & _MASK_8BITS));
+                      context.addToBuffer(((ibitWorkArea >> 8) & _MASK_8BITS));
+                      context.addToBuffer((ibitWorkArea & _MASK_8BITS));
+                  }
+              }
+          }
+      }
     }
+
+    // Two forms of EOF as far as base64 decoder is concerned: actual
+    // EOF (-1) and first time '=' character is encountered in stream.
+    // This approach makes the '=' padding characters completely optional.
+    if (eof && modulus != 0) {
+      // We have some spare bits remaining
+      // Output all whole multiples of 8 bits and ignore the rest
+      switch (modulus) {
+          // case 0 : // impossible, as excluded above
+          case 1 : // 6 bits - ignore entirely
+              // TODO not currently tested; perhaps it is impossible?
+              break;
+          case 2 : // 12 bits = 8 + 4
+              ibitWorkArea = ibitWorkArea >> 4; // dump the extra 4 bits
+              context.addToBuffer(((ibitWorkArea) & _MASK_8BITS));
+              break;
+          case 3 : // 18 bits = 8 + 8 + 2
+              ibitWorkArea = ibitWorkArea >> 2; // dump 2 bits
+              context.addToBuffer(((ibitWorkArea >> 8) & _MASK_8BITS));
+              context.addToBuffer(((ibitWorkArea) & _MASK_8BITS));
+              break;
+          default:
+              throw "Impossible modulus ${context.modulus}";
+      }
+    }
+  }
 }
 
