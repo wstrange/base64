@@ -2,9 +2,11 @@ import 'package:unittest/unittest.dart';
 
 
 import 'package:base64/base64.dart';
+import 'package:base64/base64_codec.dart';
 
 import 'dart:utf';
 import 'dart:math';
+import 'dart:async';
 
 
 
@@ -21,10 +23,35 @@ fillRandom(List<int> l) {
  * Test Base64 codec
  */
 main() {
+  // test strings and their expected encoding
+  var expected = { "a":     "YQ==",
+                   "ab":    "YWI=",
+                   "test": "dGVzdA==",
+                   "this is a test 12345678910": "dGhpcyBpcyBhIHRlc3QgMTIzNDU2Nzg5MTA=",
+"The rain in spain falls mainly in the plane. This should wrap":
+"VGhlIHJhaW4gaW4gc3BhaW4gZmFsbHMgbWFpbmx5IGluIHRoZSBwbGFuZS4gVGhp\r\ncyBzaG91bGQgd3JhcA==",
+
+"No. The rain in spain does not fall in the plane. It falls in the plain, which is quite a different thing than the plane.":
+"Tm8uIFRoZSByYWluIGluIHNwYWluIGRvZXMgbm90IGZhbGwgaW4gdGhlIHBsYW5l\r\nLiBJdCBmYWxscyBpbiB0aGUgcGxhaW4sIHdoaWNoIGlzIHF1aXRlIGEgZGlmZmVy\r\nZW50IHRoaW5nIHRoYW4gdGhlIHBsYW5lLg=="
+  };
 
   test("debug", () {
-    var b = new Base64.defaultCodec();
-    expect( b.encodeString("a"), equals("YQ=="));
+    var codec = new Base64Codec(false);
+    var urlSafeCodec = new Base64Codec(true);
+    expected.forEach(  (k,v) {
+      var inList = k.codeUnits;
+      var outList = v.codeUnits;
+      var r = codec.encodeList(inList, useLineSep:true);
+      expect(r , equals(outList));
+      print("Encoded = $r");
+      var s = codec.decodeList(r);
+      expect(s, equals(inList));
+      print("Decoded = $s");
+      //expect( enc.encodeString(k,useLineSep:true), equals(v));
+      // urlEncoded strings have no padding on the end
+      //expect( urlSafeEnc.encodeString(k), equals(v.replaceAll('=', '')));
+    });
+
   });
 
   test('Test basic encoding',  () {
@@ -32,13 +59,6 @@ main() {
     var b = new Base64.defaultCodec();
     // encoder with urlSafe encoding
     var b2 = new Base64.urlSafeCodec();
-
-    // test strings and their expected encoding
-    var expected = { "a":     "YQ==",
-                     "ab":    "YWI=",
-                     "test": "dGVzdA==",
-                     "this is a test 12345678910": "dGhpcyBpcyBhIHRlc3QgMTIzNDU2Nzg5MTA="
-          };
 
 
     expected.forEach(  (k,v) {
@@ -103,6 +123,36 @@ main() {
     print("Elapsed time for $iterations iterations is ${w.elapsedMilliseconds} msec");
 
   } );
+
+  // test used for timing encoding/decoding times
+  test('CODEC benchmark test two', () {
+    var l = new List<int>(1000);
+    var codec = new Base64Codec(false);
+    fillRandom(l);
+    var w = new Stopwatch()..start();
+    for( int i =0; i < iterations; ++i ) {
+      var enc = codec.encodeList(l);
+      var dec = codec.decodeList(enc);
+      // for benchmark comment this out - it really slows down the timing
+      //expect(dec,equals(l));
+    }
+    print("Elapsed time for $iterations iterations is ${w.elapsedMilliseconds} msec");
+
+  } );
+
+  solo_test('Base64 Encode Stream transformer', () {
+    var msg = "Hello World".codeUnits;
+    var stream = new Stream.fromIterable(msg);
+
+    var t = (new Base64Codec(false)).encodeTransform;
+
+    var buf = new List();
+    stream.transform( t)
+      .listen( (d) => buf.add(d),
+          onDone:
+            expectAsync0( () => print("encoded buf $buf")));
+
+  });
 
 }
 

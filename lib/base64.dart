@@ -13,8 +13,11 @@ library base64;
 
 import 'dart:math';
 import 'dart:typeddata';
+import 'dart:async';
 
 part 'base_n_codec.dart';
+part 'base64_stream.dart';
+
 
 /**
  * Provides Base64 encoding and decoding as defined by [RFC 2045] <http://www.ietf.org/rfc/rfc2045.txt>
@@ -216,9 +219,7 @@ class Base64  extends BaseNCodec {
 
     /**
      *
-     * Encodes all of the provided data, starting at inPos, for inAvail bytes. Must be called at least twice: once with
-     * the data to encode, and once with inAvail set to "-1" to alert encoder that EOF has been reached, to flush last
-     * remaining bytes (if not multiple of 3).
+     * Encodes all of the provided data,
      *
      * *Note: no padding is added when encoding using the URL-safe alphabet*
      *
