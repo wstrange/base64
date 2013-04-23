@@ -13,35 +13,36 @@ import 'dart:async';
  */
 
 class Base64Codec {
-  // true if we should encode using urlsafe characters
+  // true if we should encode using urlsafe characters (no padding, no + or /)
   bool _urlSafe = false;
 
   /** Mask used to extract 6 bits, used when encoding */
   const int _MASK_6BITS = 0x3f;
-
-  // The '=' PAD character used in Base64 for padding
-  const int PAD =  61;
+  const int PAD =  61; // The '=' PAD character used in Base64 padding
   // CR and LF constants -for line breaks;
   const int CR = 13;
   const int LF = 10;
 
-  // if we are using CR/LF seperators
-  const MAX_LENGTH = 64;
+
+  const _MAX_LENGTH= 64; // PEM line length
 
   const _BITS_PER_ENCODED_BYTE = 6;
   const _BYTES_PER_ENCODED_BLOCK = 4;
 
 
-
   // Lookup tables for base64 characters
   static final List<int> _codeList = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/'.codeUnits;
-  // url safe avoids use of + / chars
+  // same as above - but url safe avoids use of + / chars
   static final List<int> _urlSafeCodeList = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_'.codeUnits;
 
   // lookup table - initialized from above
   List<int> _LT;
 
-  Base64Codec(this._urlSafe) {
+  // Create a new [Base64Codec] instance. If [urlSafe] is true
+  // the Codec will encode using URL safe characters (no + /)
+  // and will not use padding (=)
+  Base64Codec({bool urlSafe:false}) {
+    _urlSafe = urlSafe;
     _LT = _urlSafe ? _urlSafeCodeList : _codeList;
   }
 
@@ -80,56 +81,61 @@ class Base64Codec {
     outList[outPos++] = _LT[i & _MASK_6BITS];
   }
 
-  // handle the last 1..3 bytes with padding ('=')
-
+  // encode the last 1..3 bytes with padding ('=') if not using urlSafe
   void _encodeRemainder(List <int> inList, int inPos, List<int> outList, int outPos) {
-    int modulus = inList.length - inPos;
+    int left = inList.length - inPos;
 
-    if( modulus == 0)
+    if( left == 0)
       return; // nothing to do.
 
     int i = ((inList[inPos] & 0xff) << 10) & 0xffffffff;
-    if (modulus == 2 )
+    if (left == 2 )
       i = i | (((inList[inPos+1] & 0xff) << 2) & 0xffffffff);
 
     outList[outPos++] = _LT[ i >> 12];
     outList[outPos++] = _LT[( i >> 6) & _MASK_6BITS];
-    if( _urlSafe && modulus == 1)
-      return; // we are done.
-    outList[outPos++] = modulus == 2 ?  _LT[ i & _MASK_6BITS] : PAD;
+    if( _urlSafe && left == 1)
+      return; //
+    outList[outPos++] = left == 2 ?  _LT[ i & _MASK_6BITS] : PAD;
     if( _urlSafe )
       return; // done again.
     outList[outPos++] = PAD;
   }
 
+  // encode [inList] to Base64. If [useLineSep] is true use line
+  // seperators (\r \n) after every 64 characters.
+  // Return a [List<int>] of Base64 encoded characters
   List<int> encodeList(List<int> inList, {bool useLineSep : false}) {
-
     if( inList == null || inList.length == 0)
       return new List();
 
-
-    int eLen = (inList.length ~/ 3) * 3;              // Length of even 24-bits.
-    int cCnt = ((inList.length - 1) ~/ 3 + 1) * 4;   // Returned character count
-    int dLen = cCnt + (useLineSep ? (cCnt - 1) ~/ 76 * 2 : 0); // Length of returned array
+    int lenEven = (inList.length ~/ 3) * 3;   // Length of even 24-bits.
+    int destLen = ((inList.length - 1) ~/ 3 + 1) * 4;
+    // calculate number of \r \n line chars that we need to add
+    int lineChars = (useLineSep ? (destLen - 1) ~/ _MAX_LENGTH * 2 : 0);
+    destLen += lineChars ; // Length of output array
 
     if( _urlSafe ) {
-      // need to make sure we dont allocate too many bytes
-      int x = inList.length - eLen;
-      if (x == 1)
-          dLen -= 2;
-      if( x == 2)
-          dLen -= 1;
+      // we need to shorten the destination array by the number
+      // of pad bytes that will be on the end of this array
+      int x = inList.length - lenEven; // bytes left over at the end
+      if (x == 1) // one byte
+          destLen -= 2; // adjust for 2 null bytes at the end
+      if( x == 2) // two bytes
+          destLen -= 1; // adjust for single null byte
     }
-    var outList = new List<int>(dLen);
+
+    var outList = new List<int>(destLen);
     var outPos = 0;
     var i = 0;
 
-    for( int lineChars = 0; i < eLen; i += 3) {
+    // encode each set of 3 bytes
+    for( int lineChars = 0; i < lenEven; i += 3) {
       _encode3to4(inList,i,outList,outPos);
       outPos += 4;
       if( useLineSep ) {
         lineChars += 4; // we encoded 4 bytes
-        if(  lineChars >= MAX_LENGTH) {
+        if(  lineChars >= _MAX_LENGTH) {
           outList[outPos++] = CR;
           outList[outPos++] = LF;
           lineChars = 0;
@@ -137,26 +143,42 @@ class Base64Codec {
       }
     }
 
-    // now handle any remainder
+    // now handle the remainder
     _encodeRemainder(inList,i,outList,outPos);
 
     return outList;
   }
 
+  // Encode String [input] to a base 64 string. If [useLineSep] is true
+  // output \r \n after every 64 characters
   String encodeString(String input,{bool useLineSep: false} ) =>
        new String.fromCharCodes(encodeList(input.codeUnits, useLineSep :useLineSep));
 
+  // Decode a base64 [input] string and return a string made of the decoded code units
+  String decodeString(String input) =>
+      new String.fromCharCodes(decodeList(input.codeUnits));
+
   /**
-   * Decode the provided List of Base64 bytes
+   * Decode [inList] from Base64 to a list of bytes.
+   * Line breaks and padding are ignored.
    *
    */
   List<int> decodeList(List<int> inList) {
     if( inList == null || inList.length ==0)
       return new List();
+
     // allocate an array big enough to hold the output.
     // This might be too big, but we will return a subset of this buffer later
-    int sz = (inList.length ~/ 4) * 3 + 1;
+    int sz = (inList.length ~/ 4) * 3 + 2;
     var buffer = new Uint8List(sz);
+    int bytes = decodeToBuffer(inList,buffer);
+
+    int diff = buffer.length - bytes;
+    print("** buf was wrong size diff =$diff");
+    return new Uint8List.view(buffer.buffer, 0, buffer.length - diff);
+  }
+
+  int decodeToBuffer(List<int>inList, List<int>buffer) {
     var outPos =0;
     int ibitWorkArea = 0;
     bool eof = false;
@@ -164,7 +186,6 @@ class Base64Codec {
     for (int i = 0; i < inList.length; i++) {
       var b = inList[i];
       if (b == PAD) {
-          // We're done.
           eof = true;
           break;
       }
@@ -174,7 +195,7 @@ class Base64Codec {
             if (result >= 0) {
                 modulus = (modulus+1) % _BYTES_PER_ENCODED_BLOCK;
                 // https://groups.google.com/a/dartlang.org/d/msg/misc/6u9UNNLRjZw/YE9bV99lWyoJ
-                ibitWorkArea = ((ibitWorkArea << _BITS_PER_ENCODED_BYTE) & 0xffffffff) + result;
+                ibitWorkArea = ((ibitWorkArea << _BITS_PER_ENCODED_BYTE) & 0xffffffff) | result;
                 if (modulus == 0) {
                     buffer[outPos++] = ((ibitWorkArea >> 16) & 0xff);
                     buffer[outPos++] = ((ibitWorkArea >> 8) & 0xff);
@@ -187,7 +208,8 @@ class Base64Codec {
     // Two forms of EOF as far as base64 decoder is concerned: actual
     // EOF (-1) and first time '=' character is encountered in stream.
     // This approach makes the '=' padding characters completely optional.
-    if (eof && modulus != 0) {
+    // && o ||
+    if (eof || modulus != 0) {
       // We have some spare bits remaining
       // Output all whole multiples of 8 bits and ignore the rest
       switch (modulus) {
@@ -203,48 +225,109 @@ class Base64Codec {
           default:
       }
     }
-
-    // buffer was same size - so we can just return it
-    if( outPos == buffer.length) return buffer;
-    // else - we made buffer too big. Return a smaller buffer by
-    // creating a view on the larger buffer
-    int diff = buffer.length - outPos;
-    return new Uint8List.view(buffer.buffer, 0, buffer.length - diff);
+    return outPos;
   }
 
+  /**
+   * Return a [StreamTransformer]
+   * that transform a stream of ints (bytes) to a base64 stream.
+   * Standard encoding will be used (64 byte line length,
+   * no url safe characters).
+   * This will not be as efficient as using the [encodeList] method
+   * but is preferable when the input stream is large and
+   * you do not wish to pre-allocate buffer space to hold the entire
+   * input stream.
+   */
 
-  StreamTransformer get encodeTransform {
-    var buffer = new List();
+  StreamTransformer get encodeTransformer {
+    var buffer = new List<int>(3);
+    var encList = new List<int>(4);
+    int count =0;
+    int lineCount = 0;
 
-    var t = new StreamTransformer(
-      handleData: (data,sink) {
-        buffer.add(data);
+
+    return  new StreamTransformer(
+      handleData: (int data,sink) {
+        buffer[count++] = data;
+        //print("add $data count=$count line=$lineCount");
+        // 3 bytes can now be encoded to 4
+        if( count == 3) {
+          codec._encode3to4(buffer,0,encList,0);
+          encList.forEach( (item) => sink.add(item));
+          count = 0;
+          lineCount += 4;
+          if( lineCount >= _MAX_LENGTH) {
+            sink.add(CR);
+            sink.add(LF);
+            lineCount = 0;
+          }
+        }
       },
       handleDone: (sink) {
-        var l = encodeList(buffer);
-        l.forEach( (v) => sink.add(v));
+        //print("DONE: count=$count line=$lineCount");
+        // any bytes left over?
+        if( count != 0) {
+          // check line count
+          if( lineCount >= _MAX_LENGTH) {
+            sink.add(CR);
+            sink.add(LF);
+          }
+          // create just remainder bytes in array
+          var buf = buffer.sublist(0,count);
+          codec._encodeRemainder(buf,0,encList,0);
+          encList.forEach( (item) => sink.add(item));
+        }
         sink.close();
-     });
-
-    return t;
+      }
+    );
   }
 
-  StreamTransformer get decodeTransform {
-    var buffer = new List();
+  /*
+   * Return a [StreamTransformer] that decodes a stream
+   * of Base64 bytes to their original byte value.
+   *
+   * This is not an efficient way of decoding and
+   * [decodeList] should be used if possible. Use this
+   * when the input is very large and you do not want to
+   * allocate a buffer for the entire contents
+   */
 
-    var t = new StreamTransformer(
+  StreamTransformer get decodeTransformer {
+    var buffer = new List();
+    var outBuf = new List(4);
+
+    int count =0;
+
+    return new StreamTransformer(
       handleData: (data,sink) {
-        buffer.add(data);
+        // ignore any bytes that are not in the B64 alphabet
+        if( _DECODE_TABLE[data] != -1) {
+          buffer.add(data);
+          // we know that 4 base64 chars decodes nicely to 3 bytes
+          if( ++count >= 4) {
+            print("Decode $buffer");
+            decodeToBuffer(buffer,outBuf);
+            outBuf.forEach( (i) => sink.add(i));
+            count =0;
+            buffer.clear();
+          }
+        }
       },
       handleDone: (sink) {
-        var l = decodeList(buffer);
-        l.forEach( (v) => sink.add(v));
+
+        if( count > 0) { // handle any remaining Base64 chars
+          var b = decodeList(buffer);
+          print("DONE: count=$count buf=$buffer b=$b");
+          b.forEach( (i) => sink.add(i));
+        }
         sink.close();
      });
-
-    return t;
   }
 
+  // Standard [Base64Codec] instance
+  static final Base64Codec codec = new Base64Codec(urlSafe:false);
+  // URL Safe [Base64Codec] instance. Will not use padding or + \ chars
+  static final Base64Codec urlSafeCodec  = new Base64Codec(urlSafe:true);
 
 
 
