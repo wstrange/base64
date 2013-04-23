@@ -1,4 +1,3 @@
-
 library base64_codec;
 
 import 'dart:math';
@@ -9,6 +8,8 @@ import 'dart:async';
  * Base64 Codec
  *
  * Encode or decode to Base64 representation [http://en.wikipedia.org/wiki/Base64]
+ *
+ * This takes inspiration from the Apache Commons and MIG Codecs.
  *
  */
 

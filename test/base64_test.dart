@@ -1,10 +1,8 @@
 import 'package:unittest/unittest.dart';
 
 
-import 'package:base64/base64.dart';
 import 'package:base64/base64_codec.dart';
 
-import 'dart:utf';
 import 'dart:math';
 import 'dart:async';
 import 'dart:io';
@@ -44,8 +42,8 @@ main() {
 "Tm8uIFRoZSByYWluIGluIHNwYWluIGRvZXMgbm90IGZhbGwgaW4gdGhlIHBsYW5l\r\nLiBJdCBmYWxscyBpbiB0aGUgcGxhaW4sIHdoaWNoIGlzIHF1aXRlIGEgZGlmZmVy\r\nZW50IHRoaW5nIHRoYW4gdGhlIHBsYW5lLg=="
   };
 
-  var expectedCodeUnits = new Map();
   // same map - but using List of code units instead of String
+  var expectedCodeUnits = new Map();
   expected.forEach( (k,v) => expectedCodeUnits[k.codeUnits] = v.codeUnits);
 
   test('Debug', () {
@@ -96,19 +94,6 @@ main() {
 
   const iterations = 10000;
 
-  // test used for timing encoding/decoding times
-  test('CODEC benchmark test', () {
-    var l = new List<int>(1000);
-    var b = new Base64.defaultCodec();
-    fillRandom(l);
-    var w = new Stopwatch()..start();
-    for( int i =0; i < iterations; ++i ) {
-      var enc = b.encode(l);
-      var dec = b.decode(enc);
-    }
-    print("Codec 1 - Elapsed time for $iterations iterations is ${w.elapsedMilliseconds} msec");
-
-  } );
 
   // test used for timing encoding/decoding times
   test('CODEC benchmark test two', () {
@@ -121,7 +106,7 @@ main() {
       // for benchmark comment this out - it really slows down the timing
       //expect(dec,equals(l));
     }
-    print("Codec 2 - Elapsed time $iterations iterations is ${w.elapsedMilliseconds} msec");
+    print("Elapsed time $iterations iterations is ${w.elapsedMilliseconds} msec");
 
   } );
 
