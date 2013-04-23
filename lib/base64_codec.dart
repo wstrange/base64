@@ -4,14 +4,26 @@ import 'dart:math';
 import 'dart:typeddata';
 import 'dart:async';
 
-/*
- * Base64 Codec
+/**
+ * Base64 Codec to encode or decode Base64.
  *
- * Encode or decode to Base64 representation [http://en.wikipedia.org/wiki/Base64]
+ * See [Base64 Encoding](http://en.wikipedia.org/wiki/Base64).
+ *
+ * The encoder can produce standard or "URL Safe" encoding by avoiding
+ * the use of padding and using the '-' and '_'  characters in place of  '+' and '\'.
+ *
+ * The [encodeString] and [encodeList] methods can optionally insert line breaks (\r \n)
+ * after every 64 characters.
+ *
+ * ## Sample Usage:
+ *
+ *      var encodedList = Base64Codec.codec.encodeList(myList,useLineSep:true);
+ *      var decodedList = Base64Codec.decodeList(myList);
  *
  * This takes inspiration from the Apache Commons and MIG Codecs.
  *
  */
+
 
 class Base64Codec {
   // true if we should encode using urlsafe characters (no padding, no + or /)
@@ -19,9 +31,11 @@ class Base64Codec {
 
   /** Mask used to extract 6 bits, used when encoding */
   const int _MASK_6BITS = 0x3f;
+  /// Padding character (=)
   const int PAD =  61; // The '=' PAD character used in Base64 padding
-  // CR and LF constants -for line breaks;
+  /// CR seperator
   const int CR = 13;
+  /// LF seperator
   const int LF = 10;
 
 
@@ -39,20 +53,20 @@ class Base64Codec {
   // lookup table - initialized from above
   List<int> _LT;
 
-  // Create a new [Base64Codec] instance. If [urlSafe] is true
-  // the Codec will encode using URL safe characters (no + /)
-  // and will not use padding (=)
+  /// Create a new [Base64Codec] instance. If [urlSafe] is true
+  /// the Codec will encode using URL safe characters (no + /)
+  /// and will not use padding (=)
   Base64Codec({bool urlSafe:false}) {
     _urlSafe = urlSafe;
     _LT = _urlSafe ? _urlSafeCodeList : _codeList;
   }
 
 
-  /**
-   * This array is a lookup table that translates Unicode characters drawn from the "Base64 Alphabet" (as specified
+  /*
+   * A lookup table that translates Unicode characters drawn from the "Base64 Alphabet" (as specified
    * in Table 1 of RFC 2045) into their 6-bit positive integer equivalents. Characters that are not in the Base64
    * alphabet but fall within the bounds of the array are translated to -1.
-  *
+   *
    * Note: '+' and '-' both decode to 62. '/' and '_' both decode to 63. This means decoder seamlessly handles both
    * URL_SAFE and STANDARD base64. (The encoder, on the other hand, needs to know ahead of time what to emit).
   *
@@ -69,10 +83,11 @@ class Base64Codec {
       35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51];
 
 
-  // Encodes 3 input bytes into 4 base64 characters
+  // Encodes 3 input bytes in [inList] into 4 base64 bytes in [outList]
   // There *must* be 3 bytes available, and there must be 4 bytes in the outList
   void _encode3to4(List<int> inList, int inPos, List<int> outList, int outPos) {
     // Copy next three bytes into lower 24 bits of int, paying attension to sign.
+    // We must mask left shifts to avoid overflow  conversion into a big int
     int i = ((inList[inPos++] & 0xff) << 16) & 0xffffffff;
     i |= ((inList[inPos++] & 0xff) << 8) & 0xffffffff;
     i |= (inList[inPos++] & 0xff);
@@ -82,7 +97,7 @@ class Base64Codec {
     outList[outPos++] = _LT[i & _MASK_6BITS];
   }
 
-  // encode the last 1..3 bytes with padding ('=') if not using urlSafe
+  // encode the last 1..3 bytes. Pad as needed with '=' if not using urlSafe
   void _encodeRemainder(List <int> inList, int inPos, List<int> outList, int outPos) {
     int left = inList.length - inPos;
 
@@ -103,9 +118,9 @@ class Base64Codec {
     outList[outPos++] = PAD;
   }
 
-  // encode [inList] to Base64. If [useLineSep] is true use line
-  // seperators (\r \n) after every 64 characters.
-  // Return a [List<int>] of Base64 encoded characters
+  /// encode [inList] to Base64. If [useLineSep] is true, use line
+  /// seperators (\r \n) after every 64 characters.
+  /// Returns a [List<int>] of Base64 encoded characters
   List<int> encodeList(List<int> inList, {bool useLineSep : false}) {
     if( inList == null || inList.length == 0)
       return new List();
@@ -126,7 +141,7 @@ class Base64Codec {
           destLen -= 1; // adjust for single null byte
     }
 
-    var outList = new List<int>(destLen);
+    var outList = new Uint8List(destLen);
     var outPos = 0;
     var i = 0;
 
@@ -143,25 +158,27 @@ class Base64Codec {
         }
       }
     }
-
-    // now handle the remainder
+    // now handle any remainder
     _encodeRemainder(inList,i,outList,outPos);
 
     return outList;
   }
 
-  // Encode String [input] to a base 64 string. If [useLineSep] is true
-  // output \r \n after every 64 characters
+  /// Encode String [input] to a base 64 string. If [useLineSep] is true
+  /// output \r \n after every 64 characters
   String encodeString(String input,{bool useLineSep: false} ) =>
        new String.fromCharCodes(encodeList(input.codeUnits, useLineSep :useLineSep));
 
-  // Decode a base64 [input] string and return a string made of the decoded code units
+  /// Decode a base64 [input] string and return a string made of the decoded code units
   String decodeString(String input) =>
       new String.fromCharCodes(decodeList(input.codeUnits));
 
   /**
    * Decode [inList] from Base64 to a list of bytes.
-   * Line breaks and padding are ignored.
+   *
+   * Note that Line breaks, white space and padding are ignored by the decoder.
+   * This method can handle both "standard" and "URL safe" encoded input. You
+   * do not need a special URL Safe instance for *decoding* (only encoding)
    *
    */
   List<int> decodeList(List<int> inList) {
@@ -169,17 +186,27 @@ class Base64Codec {
       return new List();
 
     // allocate an array big enough to hold the output.
+    // Without scanning the input first it is hard to know how big
+    // to make the output array
     // This might be too big, but we will return a subset of this buffer later
     int sz = (inList.length ~/ 4) * 3 + 2;
     var buffer = new Uint8List(sz);
     int bytes = decodeToBuffer(inList,buffer);
 
     int diff = buffer.length - bytes;
-    //print("** buf was wrong size diff =$diff");
+    //print("** Size diff =$diff");
     return new Uint8List.view(buffer.buffer, 0, buffer.length - diff);
   }
 
-  int decodeToBuffer(List<int>inList, List<int>buffer) {
+  /**
+   * Decode [inList] from Base64 into the supplied [buffer].
+   * The buffer must be large enough to accept all of the decoded bytes.
+   * Returns the number of bytes that were decoded.
+   *
+   * Use this method if you know you can safely reusue the target buffer
+   * and you are sure it is large enough.
+   */
+  int decodeToBuffer(List<int> inList, List<int> buffer) {
     var outPos =0;
     int ibitWorkArea = 0;
     bool eof = false;
@@ -231,13 +258,20 @@ class Base64Codec {
 
   /**
    * Return a [StreamTransformer]
-   * that transform a stream of ints (bytes) to a base64 stream.
-   * Standard encoding will be used (64 byte line length,
+   * that transform a stream of ints (bytes) to a Base64 encoded stream.
+   * Standard encoding will be used (64 bytes on a line,
    * no url safe characters).
+   *
    * This will not be as efficient as using the [encodeList] method
    * but is preferable when the input stream is large and
    * you do not wish to pre-allocate buffer space to hold the entire
    * input stream.
+   *
+   * Sample Usage:
+   *
+   * [:
+   *   someStream.transform(Base64.codec.encodeTransformer).listen( (e) ...)
+   * :]
    */
 
   StreamTransformer get encodeTransformer {
@@ -256,7 +290,7 @@ class Base64Codec {
           codec._encode3to4(buffer,0,encList,0);
           encList.forEach( (item) => sink.add(item));
           count = 0;
-          lineCount += 4;
+          lineCount += 4; // 4 bytes written to output
           if( lineCount >= _MAX_LENGTH) {
             sink.add(CR);
             sink.add(LF);
@@ -283,14 +317,21 @@ class Base64Codec {
     );
   }
 
-  /*
+  /**
    * Return a [StreamTransformer] that decodes a stream
    * of Base64 bytes to their original byte value.
    *
    * This is not an efficient way of decoding and
-   * [decodeList] should be used if possible. Use this
-   * when the input is very large and you do not want to
-   * allocate a buffer for the entire contents
+   * [decodeList] should be used if possible.
+   *
+   * Use this when the input stream is large and you do not want to
+   * allocate a buffer for the entire contents before decoding.
+   *
+   * Sample:
+   *
+   * [:
+   *    someStream.transform( Base64Codec.codec.decodeTransformer).listen(...)
+   * :]
    */
 
   StreamTransformer get decodeTransformer {
@@ -326,9 +367,9 @@ class Base64Codec {
      });
   }
 
-  // Standard [Base64Codec] instance
+  /// An instance of a standard [Base64Codec]. The encoding is not url Safe
   static final Base64Codec codec = new Base64Codec(urlSafe:false);
-  // URL Safe [Base64Codec] instance. Will not use padding or + \ chars
+  /// An instance of a URL Safe [Base64Codec]. Will not use padding or + \ chars
   static final Base64Codec urlSafeCodec  = new Base64Codec(urlSafe:true);
 
 
