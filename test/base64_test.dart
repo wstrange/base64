@@ -7,6 +7,7 @@ import 'package:base64/base64_codec.dart';
 import 'dart:utf';
 import 'dart:math';
 import 'dart:async';
+import 'dart:io';
 
 
 
@@ -173,6 +174,25 @@ main() {
             })
           );
     }); // end test
+  });
+
+
+  test('File Streaming test',() {
+    var f = new File('test/base64_test.dart');
+    var buf = new List();
+
+    f.readAsBytes().then( expectAsync1((bytes) {
+      new Stream.fromIterable(bytes)
+      .transform(codec.encodeTransformer)
+      .transform(codec.decodeTransformer)
+      .listen( (d) => buf.add(d),
+        onDone:
+          expectAsync0( () {
+            //print( new String.fromCharCodes(buf));
+            expect(buf,equals(bytes));
+          })
+        );
+    }));
   });
 
 }
