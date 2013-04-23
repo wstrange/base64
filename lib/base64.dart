@@ -16,7 +16,6 @@ import 'dart:typeddata';
 import 'dart:async';
 
 part 'base_n_codec.dart';
-part 'base64_stream.dart';
 
 
 /**
