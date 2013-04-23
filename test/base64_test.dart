@@ -66,7 +66,6 @@ main() {
       expect( codec.encodeString(input,useLineSep:true), equals(encoded));
       // urlEncoded strings have no padding on the end
       var p = urlSafeString(encoded);
-      print('$p');
       expect( urlSafeCodec.encodeString(input), equals(p));
     });
 
@@ -140,7 +139,7 @@ main() {
     }); // end test
   });
 
-  solo_test('Base64 Decode Stream Transformer', () {
+  test('Base64 Decode Stream Transformer', () {
     expectedCodeUnits.forEach( (k,v) {
       var t = codec.decodeTransformer;
       var stream = new Stream.fromIterable(v);
@@ -169,7 +168,7 @@ main() {
         .listen( (d) => buf.add(d),
           onDone:
             expectAsync0( () {
-              print("$k\n$buf");
+              //print("$k\n$buf");
               expect(buf,equals(k));
             })
           );

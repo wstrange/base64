@@ -174,7 +174,7 @@ class Base64Codec {
     int bytes = decodeToBuffer(inList,buffer);
 
     int diff = buffer.length - bytes;
-    print("** buf was wrong size diff =$diff");
+    //print("** buf was wrong size diff =$diff");
     return new Uint8List.view(buffer.buffer, 0, buffer.length - diff);
   }
 
@@ -294,7 +294,7 @@ class Base64Codec {
 
   StreamTransformer get decodeTransformer {
     var buffer = new List();
-    var outBuf = new List(4);
+    var outBuf = new List(3);
 
     int count =0;
 
@@ -303,11 +303,12 @@ class Base64Codec {
         // ignore any bytes that are not in the B64 alphabet
         if( _DECODE_TABLE[data] != -1) {
           buffer.add(data);
-          // we know that 4 base64 chars decodes nicely to 3 bytes
+          // we know that 4 base64 chars decodes to 3 bytes
           if( ++count >= 4) {
-            print("Decode $buffer");
             decodeToBuffer(buffer,outBuf);
-            outBuf.forEach( (i) => sink.add(i));
+            //print("Decode $buffer");
+            for(int i=0; i < 3; ++i)
+              sink.add(outBuf[i]);
             count =0;
             buffer.clear();
           }
@@ -317,7 +318,7 @@ class Base64Codec {
 
         if( count > 0) { // handle any remaining Base64 chars
           var b = decodeList(buffer);
-          print("DONE: count=$count buf=$buffer b=$b");
+          //print("DONE: count=$count buf=$buffer b=$b");
           b.forEach( (i) => sink.add(i));
         }
         sink.close();
