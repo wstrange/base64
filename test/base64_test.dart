@@ -6,6 +6,7 @@ import 'package:base64_codec/base64_codec.dart';
 import 'dart:math';
 import 'dart:async';
 import 'dart:io';
+import 'dart:crypto';
 
 
 
@@ -107,6 +108,14 @@ main() {
       //expect(dec,equals(l));
     }
     print("Elapsed time $iterations iterations is ${w.elapsedMilliseconds} msec");
+
+    // try Dart crypto
+    w = new Stopwatch()..start();
+    for(int i=0; i < iterations; ++i) {
+      var enc = CryptoUtils.bytesToBase64(l);
+      var dec = CryptoUtils.base64StringToBytes(enc);
+    }
+    print("Dart SDK: Elapsed time $iterations iterations is ${w.elapsedMilliseconds} msec");
 
   } );
 

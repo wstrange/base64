@@ -1,14 +1,21 @@
 #Base64 Codec for Dart
-========================
+
+
 A Base64 Codec for Dart.
 
 Encodes/Decodes to Base64. Has options for url safe encoding, line breaks
 
 Licensed under Apache 2.0
 
+## Deprecated
+
+*Note: The Dart SDK now includes a Base64 codec with url safe options. Unless
+you need streaming support, you should use the SDK methods as they
+are slightly faster.*
+
+See [CryptoUtils](http://api.dartlang.org/docs/releases/latest/dart_crypto/CryptoUtils.html)
 
 ##Example Usage
---------
 
 	// get a codec instance
 	var c = new Base64Codec(urlSafe:true)
