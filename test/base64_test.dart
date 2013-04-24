@@ -1,7 +1,7 @@
 import 'package:unittest/unittest.dart';
 
 
-import 'package:base64/base64_codec.dart';
+import 'package:base64_codec/base64_codec.dart';
 
 import 'dart:math';
 import 'dart:async';
