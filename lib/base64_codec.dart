@@ -1,7 +1,7 @@
 library base64_codec;
 
 import 'dart:math';
-import 'dart:typeddata';
+import 'dart:typed_data';
 import 'dart:async';
 
 /**
@@ -37,6 +37,10 @@ class Base64Codec {
   const int CR = 13;
   /// LF seperator
   const int LF = 10;
+
+  // mask to keep results from overlflowing an int on left shift
+  //const int _MASK_INT =  0x3fffffff;
+  const int _MASK_INT =  0xffffff;
 
 
   const _MAX_LENGTH= 64; // PEM line length
@@ -88,8 +92,8 @@ class Base64Codec {
   void _encode3to4(List<int> inList, int inPos, List<int> outList, int outPos) {
     // Copy next three bytes into lower 24 bits of int, paying attension to sign.
     // We must mask left shifts to avoid overflow  conversion into a big int
-    int i = ((inList[inPos++] & 0xff) << 16) & 0xffffffff;
-    i |= ((inList[inPos++] & 0xff) << 8) & 0xffffffff;
+    int i = ((inList[inPos++] & 0xff) << 16) & _MASK_INT;
+    i |= ((inList[inPos++] & 0xff) << 8) & _MASK_INT;
     i |= (inList[inPos++] & 0xff);
     outList[outPos++] = _LT[(i >> 18) & _MASK_6BITS];
     outList[outPos++] = _LT[(i >> 12) & _MASK_6BITS];
@@ -104,9 +108,9 @@ class Base64Codec {
     if( left == 0)
       return; // nothing to do.
 
-    int i = ((inList[inPos] & 0xff) << 10) & 0xffffffff;
+    int i = ((inList[inPos] & 0xff) << 10) & _MASK_INT;
     if (left == 2 )
-      i = i | (((inList[inPos+1] & 0xff) << 2) & 0xffffffff);
+      i = i | (((inList[inPos+1] & 0xff) << 2) & _MASK_INT);
 
     outList[outPos++] = _LT[ i >> 12];
     outList[outPos++] = _LT[( i >> 6) & _MASK_6BITS];
@@ -223,7 +227,7 @@ class Base64Codec {
             if (result >= 0) {
                 modulus = (modulus+1) % _BYTES_PER_ENCODED_BLOCK;
                 // https://groups.google.com/a/dartlang.org/d/msg/misc/6u9UNNLRjZw/YE9bV99lWyoJ
-                ibitWorkArea = ((ibitWorkArea << _BITS_PER_ENCODED_BYTE) & 0xffffffff) | result;
+                ibitWorkArea = ((ibitWorkArea << _BITS_PER_ENCODED_BYTE) & _MASK_INT) | result;
                 if (modulus == 0) {
                     buffer[outPos++] = ((ibitWorkArea >> 16) & 0xff);
                     buffer[outPos++] = ((ibitWorkArea >> 8) & 0xff);
