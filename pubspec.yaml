@@ -3,5 +3,9 @@ version: 0.1.2
 author: Warren Strange <warren.strange@gmail.com>
 description: A Base 64 codec for dart.
 homepage: https://github.com/wstrange/base64
+environment:
+  sdk: <=1.5.0
+dependencies:
+  crypto: any
 dev_dependencies:
   unittest: any

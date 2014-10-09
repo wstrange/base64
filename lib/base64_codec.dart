@@ -5,6 +5,11 @@ import 'dart:typed_data';
 import 'dart:async';
 
 /**
+ *
+ *
+ * THIS LIBRARY IS DEPRECATED. USE THE Base64 Codec support in the crypto library
+ * See [CryptoUtils](http://api.dartlang.org/docs/releases/latest/dart_crypto/CryptoUtils.html)
+ *
  * Base64 Codec to encode or decode Base64.
  *
  * See [Base64 Encoding](http://en.wikipedia.org/wiki/Base64).
@@ -30,23 +35,23 @@ class Base64Codec {
   bool _urlSafe = false;
 
   /** Mask used to extract 6 bits, used when encoding */
-  const int _MASK_6BITS = 0x3f;
+  static int _MASK_6BITS = 0x3f;
   /// Padding character (=)
-  const int PAD =  61; // The '=' PAD character used in Base64 padding
+  static int PAD =  61; // The '=' PAD character used in Base64 padding
   /// CR seperator
-  const int CR = 13;
+  static int CR = 13;
   /// LF seperator
-  const int LF = 10;
+  static int LF = 10;
 
   // mask to keep results from overlflowing an int on left shift
   //const int _MASK_INT =  0x3fffffff;
-  const int _MASK_INT =  0xffffff;
+  static int _MASK_INT =  0xffffff;
 
 
-  const _MAX_LENGTH= 64; // PEM line length
+  static int _MAX_LENGTH= 64; // PEM line length
 
-  const _BITS_PER_ENCODED_BYTE = 6;
-  const _BYTES_PER_ENCODED_BLOCK = 4;
+  static int _BITS_PER_ENCODED_BYTE = 6;
+  static int _BYTES_PER_ENCODED_BLOCK = 4;
 
 
   // Lookup tables for base64 characters
@@ -283,6 +288,8 @@ class Base64Codec {
     var encList = new List<int>(4);
     int count =0;
     int lineCount = 0;
+
+    var s = new StreamController();
 
 
     return  new StreamTransformer(
